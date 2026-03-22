@@ -5,21 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connect Checker - eightbrows</title>
     <style>
+        /* お前の愛した基本の魔法陣（元の色使いを維持） */
         body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f0f8ff; color: #333; }
-        .box { background-color: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 90%; }
-        h1 { color: #0056b3; }
-        .btn { display: inline-block; padding: 15px 30px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+        .box { background-color: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 90%; width: 600px; }
+        h1 { color: #0056b3; margin-bottom: 15px; }
+        .author { font-size: 1.2em; color: #666; margin-bottom: 25px; }
+        .overview { margin-bottom: 20px; line-height: 1.6; }
+        .btn { display: inline-block; padding: 15px 30px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px; margin-bottom: 15px; width: 85%; box-sizing: border-box; }
         .btn:hover { background-color: #218838; }
-        .author { font-size: 1.2em; color: #666; }
-        .past-releases { display: inline-block; margin-top: 15px; font-size: 0.9em; color: #0056b3; text-decoration: underline; }
+        .past-releases { display: inline-block; margin-bottom: 30px; font-size: 0.9em; color: #0056b3; text-decoration: underline; }
         .past-releases:hover { color: #003d82; }
+
+        /* 【追加】横並び画像の魔術（スクロール対応） */
+        .screenshots-title { text-align: left; border-bottom: 2px solid #f0f8ff; padding-bottom: 5px; color: #555; font-size: 1.1em; margin-top: 10px; }
+        .screenshots { display: flex; overflow-x: auto; gap: 15px; padding: 15px 0; }
+        /* スクロールバーのお洒落な隠し味 */
+        .screenshots::-webkit-scrollbar { height: 8px; }
+        .screenshots::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        
+        /* 画像をカードのように見せる */
+        .screenshots img { height: 250px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; }
+        .screenshots img:hover { transform: scale(1.03); }
+
+        /* 【追加】画像拡大用の黒い隠し部屋（モーダル） */
+        #magic-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
+        #magic-modal img { max-width: 90%; max-height: 90%; border-radius: 10px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+        #magic-modal.show { display: flex; }
     </style>
 </head>
 <body>
     <div class="box">
         <h1>Connect Checker</h1>
+        
+        <p class="overview">現在の接続回線（Wi-Fi / モバイル通信）を素早く確認できる<br>Android用ウィジェットアプリです。<br>ウィジェット表示はタップにて更新して下さい。</p>
+        
         <p class="author">開発者: eightbrows</p>
-        <p>現在の接続回線（Wi-Fi / モバイル通信）を素早く確認できる<br>Android用ウィジェットアプリです。ウィジェット表示はタップにて更新して下さい。</p>
         
         <a href="https://github.com/eightbrows/connect_checker/releases/latest/download/connect_checker-latest.apk" class="btn">最新版アプリをダウンロード (APK)</a>
         
@@ -27,6 +47,29 @@
         
         <a href="https://github.com/eightbrows/connect_checker/releases" target="_blank" class="past-releases">過去のバージョン（変更履歴）はこちら</a>
 
+        <div class="screenshots-title">スクリーンショット</div>
+        <div class="screenshots">
+            <img src="img/cc_01_wifi_sm.png" alt="画面1" onclick="openMagic(this.src)">
+            <img src="img/cc_02_mobile_sm.png" alt="画面2" onclick="openMagic(this.src)">
+            <img src="img/cc_03_noservice_sm.png" alt="画面3" onclick="openMagic(this.src)">
+            <img src="img/cc_04_refresh_sm.png" alt="画面4" onclick="openMagic(this.src)">
+            <img src="img/cc_11_initialconfig_sm.png" alt="画面5" onclick="openMagic(this.src)">
+            <img src="img/cc_21_wifisetting1_sm.png" alt="画面6" onclick="openMagic(this.src)">
+        </div>
     </div>
+
+    <div id="magic-modal" onclick="closeMagic()">
+        <img id="magic-img" src="">
+    </div>
+
+    <script>
+        function openMagic(imageSource) {
+            document.getElementById('magic-img').src = imageSource;
+            document.getElementById('magic-modal').classList.add('show');
+        }
+        function closeMagic() {
+            document.getElementById('magic-modal').classList.remove('show');
+        }
+    </script>
 </body>
 </html>
