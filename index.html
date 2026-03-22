@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connect Checker - eightbrows</title>
     <style>
-        /* お前の愛した基本の魔法陣（元の色使いを維持） */
         body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f0f8ff; color: #333; }
         .box { background-color: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 90%; width: 600px; }
         h1 { color: #0056b3; margin-bottom: 15px; }
@@ -16,59 +15,86 @@
         .past-releases { display: inline-block; margin-bottom: 30px; font-size: 0.9em; color: #0056b3; text-decoration: underline; }
         .past-releases:hover { color: #003d82; }
 
-        /* 【追加】横並び画像の魔術（スクロール対応） */
         .screenshots-title { text-align: left; border-bottom: 2px solid #f0f8ff; padding-bottom: 5px; color: #555; font-size: 1.1em; margin-top: 10px; }
         .screenshots { display: flex; overflow-x: auto; gap: 15px; padding: 15px 0; }
-        /* スクロールバーのお洒落な隠し味 */
         .screenshots::-webkit-scrollbar { height: 8px; }
         .screenshots::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
         
-        /* 画像をカードのように見せる */
         .screenshots img { height: 250px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; }
         .screenshots img:hover { transform: scale(1.03); }
 
-        /* 【追加】画像拡大用の黒い隠し部屋（モーダル） */
+        /* Modal Styles */
         #magic-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
-        #magic-modal img { max-width: 90%; max-height: 90%; border-radius: 10px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
         #magic-modal.show { display: flex; }
+        #magic-modal img { max-width: 80%; max-height: 80%; border-radius: 10px; box-shadow: 0 0 20px rgba(255,255,255,0.2); user-select: none; }
+        
+        /* Navigation Buttons */
+        .nav-btn { cursor: pointer; position: absolute; top: 50%; width: auto; padding: 20px; margin-top: -30px; color: white; font-weight: bold; font-size: 40px; transition: 0.3s; user-select: none; z-index: 1001; }
+        .nav-btn:hover { color: #bbb; }
+        .prev { left: 5%; }
+        .next { right: 5%; }
     </style>
 </head>
 <body>
     <div class="box">
         <h1>Connect Checker</h1>
-        
         <p class="overview">現在の接続回線（Wi-Fi / モバイル通信）を素早く確認できる<br>Android用ウィジェットアプリです。<br>ウィジェット表示はタップにて更新して下さい。</p>
-        
         <p class="author">開発者: eightbrows</p>
         
         <a href="https://github.com/eightbrows/connect_checker/releases/latest/download/connect_checker-latest.apk" class="btn">最新版アプリをダウンロード (APK)</a>
-        
         <br>
-        
         <a href="https://github.com/eightbrows/connect_checker/releases" target="_blank" class="past-releases">過去のバージョン（変更履歴）はこちら</a>
 
         <div class="screenshots-title">スクリーンショット</div>
         <div class="screenshots">
-            <img src="img/cc_01_wifi_sm.png" alt="画面1" onclick="openMagic(this.src)">
-            <img src="img/cc_02_mobile_sm.png" alt="画面2" onclick="openMagic(this.src)">
-            <img src="img/cc_03_noservice_sm.png" alt="画面3" onclick="openMagic(this.src)">
-            <img src="img/cc_04_refresh_sm.png" alt="画面4" onclick="openMagic(this.src)">
-            <img src="img/cc_11_initialconfig_sm.png" alt="画面5" onclick="openMagic(this.src)">
-            <img src="img/cc_21_wifisetting1_sm.png" alt="画面6" onclick="openMagic(this.src)">
+            <img src="img/cc_01_wifi_sm.png" alt="画面1" onclick="openModal(0)">
+            <img src="img/cc_02_mobile_sm.png" alt="画面2" onclick="openModal(1)">
+            <img src="img/cc_03_noservice_sm.png" alt="画面3" onclick="openModal(2)">
+            <img src="img/cc_04_refresh_sm.png" alt="画面4" onclick="openModal(3)">
+            <img src="img/cc_11_initialconfig_sm.png" alt="画面5" onclick="openModal(4)">
+            <img src="img/cc_21_wifisetting1_sm.png" alt="画面6" onclick="openModal(5)">
         </div>
     </div>
 
-    <div id="magic-modal" onclick="closeMagic()">
+    <div id="magic-modal" onclick="closeModal(event)">
+        <span class="nav-btn prev" onclick="changeImage(-1, event)">&#10094;</span>
         <img id="magic-img" src="">
+        <span class="nav-btn next" onclick="changeImage(1, event)">&#10095;</span>
     </div>
 
     <script>
-        function openMagic(imageSource) {
-            document.getElementById('magic-img').src = imageSource;
+        let currentIdx = 0;
+        let images = [];
+
+        window.onload = function() {
+            images = document.querySelectorAll('.screenshots img');
+        };
+
+        function openModal(index) {
+            currentIdx = index;
+            document.getElementById('magic-img').src = images[currentIdx].src;
             document.getElementById('magic-modal').classList.add('show');
         }
-        function closeMagic() {
-            document.getElementById('magic-modal').classList.remove('show');
+
+        function closeModal(event) {
+            // 背景部分をクリックした時だけ閉じる仕様
+            if (event.target.id === 'magic-modal') {
+                document.getElementById('magic-modal').classList.remove('show');
+            }
+        }
+
+        function changeImage(step, event) {
+            event.stopPropagation(); // 矢印をクリックした時に背景のクリック判定（閉じる処理）が暴発するのを防ぐ
+            currentIdx += step;
+            
+            // 最後の画像の次は最初の画像へ、最初の画像の前は最後の画像へループする
+            if (currentIdx >= images.length) {
+                currentIdx = 0;
+            } else if (currentIdx < 0) {
+                currentIdx = images.length - 1;
+            }
+            
+            document.getElementById('magic-img').src = images[currentIdx].src;
         }
     </script>
 </body>
