@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connect Checker - eightbrows</title>
+    <title>接続回線確認アプリ(Connect Checker) - eightbrows</title>
     <style>
         body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f0f8ff; color: #333; }
         .box { background-color: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 90%; width: 600px; }
-        h1 { color: #0056b3; margin-bottom: 15px; }
+        
+        h1 { color: #0056b3; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .app-icon { height: 1.2em; width: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
         .author { font-size: 1.2em; color: #666; margin-bottom: 25px; }
         .overview { margin-bottom: 20px; line-height: 1.6; }
         .btn { display: inline-block; padding: 15px 30px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px; margin-bottom: 15px; width: 85%; box-sizing: border-box; }
@@ -37,7 +40,11 @@
 </head>
 <body>
     <div class="box">
-        <h1>Connect Checker</h1>
+        <h1>
+            <img src="img/cc_appicon_sm.png" alt="アプリアイコン" class="app-icon">
+            接続回線確認アプリ(Connect Checker)
+        </h1>
+        
         <p class="overview">現在の接続回線（Wi-Fi / モバイル通信）を素早く確認できる<br>Android用ウィジェットアプリです。<br>ウィジェット表示はタップにて更新して下さい。</p>
         <p class="author">開発者: eightbrows</p>
         
@@ -77,17 +84,15 @@
         }
 
         function closeModal(event) {
-            // 背景部分をクリックした時だけ閉じる仕様
             if (event.target.id === 'magic-modal') {
                 document.getElementById('magic-modal').classList.remove('show');
             }
         }
 
         function changeImage(step, event) {
-            event.stopPropagation(); // 矢印をクリックした時に背景のクリック判定（閉じる処理）が暴発するのを防ぐ
+            event.stopPropagation(); 
             currentIdx += step;
             
-            // 最後の画像の次は最初の画像へ、最初の画像の前は最後の画像へループする
             if (currentIdx >= images.length) {
                 currentIdx = 0;
             } else if (currentIdx < 0) {
