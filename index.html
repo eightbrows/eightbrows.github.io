@@ -8,14 +8,21 @@
         body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f0f8ff; color: #333; }
         .box { background-color: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 90%; width: 600px; }
         
-        h1 { color: #0056b3; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        h1 { color: #0056b3; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .app-icon { height: 1.2em; width: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-        .author { font-size: 1.0em; color: #666; margin-bottom: 25px; }
+        /* 開発者名：謙虚に小さく（1.0em -> 0.85emに変更）、余白も調整 */
+        .author { font-size: 0.85em; color: #666; margin-bottom: 20px; }
         .author a { color: #0056b3; text-decoration: none; font-weight: bold; }
         .author a:hover { text-decoration: underline; color: #003d82; }
 
-        .overview { margin-bottom: 20px; line-height: 1.6; }
+        .overview { margin-bottom: 25px; line-height: 1.6; }
+        
+        /* 【新規】機能一覧用の魔術（左寄せで綺麗に整列させる） */
+        .features-title { text-align: left; border-bottom: 2px solid #f0f8ff; padding-bottom: 5px; color: #555; font-size: 1.1em; margin-bottom: 10px; font-weight: bold; }
+        .features-list { text-align: left; font-size: 0.95em; line-height: 1.6; margin-bottom: 30px; padding-left: 25px; color: #444; }
+        .features-list li { margin-bottom: 8px; }
+
         .btn { display: inline-block; padding: 15px 30px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px; margin-bottom: 15px; width: 85%; box-sizing: border-box; }
         .btn:hover { background-color: #218838; }
         .past-releases { display: inline-block; margin-bottom: 30px; font-size: 0.9em; color: #0056b3; text-decoration: underline; }
@@ -48,12 +55,20 @@
             接続回線確認アプリ
         </h1>
         
+        <p class="author">開発者: <a href="https://github.com/eightbrows" target="_blank">eightbrows</a></p>
+        
         <p class="overview">現在の接続回線（Wi-Fi / モバイル通信）を素早く確認できる<br>Android用ウィジェットアプリです。<br>ウィジェット表示はタップにて更新して下さい。</p>
         
-        <p class="author">開発者: <a href="https://github.com/eightbrows" target="_blank">eightbrows</a></p>
+        <div class="features-title">主な機能</div>
+        <ul class="features-list">
+            <li>ホーム画面のウィジェット表示で現在の使用している接続回線をひと目で確認。</li>
+            <li>モバイル回線の場合はギガ使用量、Wi-Fi回線の場合は電波強度を表示。</li>
+            <li>表示更新は30分毎の自動更新※1とタップによる手動更新の両方を実装。<br>※1 毎回必ず更新される訳ではありません。</li>
+        </ul>
         
         <a href="https://github.com/eightbrows/connect_checker/releases/latest/download/connect_checker-latest.apk" class="btn">最新版アプリをダウンロード (APK)</a>
         <br>
+        
         <a href="https://github.com/eightbrows/connect_checker/releases" target="_blank" class="past-releases">過去のバージョン（変更履歴）はこちら</a>
 
         <div class="screenshots-title">スクリーンショット</div>
