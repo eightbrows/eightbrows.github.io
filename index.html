@@ -1,138 +1,373 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connect Checker - eightbrows</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f0f8ff; color: #333; }
-        .box { background-color: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 90%; width: 600px; }
-        
-        h1 { color: #0056b3; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .app-icon { height: 1.2em; width: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connect Checker - eightbrows</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* 開発者名：謙虚に小さく（1.0em -> 0.85emに変更）、余白も調整 */
-        .author { font-size: 0.85em; color: #666; margin-bottom: 20px; }
-        .author a { color: #0056b3; text-decoration: none; font-weight: bold; }
-        .author a:hover { text-decoration: underline; color: #003d82; }
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    background-color: #f0f8ff;
+    color: #333;
+    padding: 40px 16px;
+  }
 
-        .overview { margin-bottom: 25px; line-height: 1.6; }
-        
-        /* 機能一覧用（左寄せで綺麗に整列させる） */
-        .features-title { text-align: left; border-bottom: 2px solid #f0f8ff; padding-bottom: 5px; color: #555; font-size: 1.1em; margin-bottom: 10px; font-weight: bold; }
-        .features-list { text-align: left; font-size: 0.95em; line-height: 1.6; margin-bottom: 30px; padding-left: 25px; color: #444; }
-        .features-list li { margin-bottom: 8px; }
-        
-        .notes-title { text-align: left; border-bottom: 2px solid #fad2d2; padding-bottom: 5px; color: #d9534f; font-size: 1.1em; margin-bottom: 10px; font-weight: bold; }
-        .notes-list { text-align: left; font-size: 0.9em; line-height: 1.6; margin-bottom: 30px; padding-left: 25px; color: #d9534f; }
-        .notes-list li { margin-bottom: 8px; }
-        
-        .btn { display: inline-block; padding: 15px 30px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px; margin-bottom: 15px; width: 85%; box-sizing: border-box; }
-        .btn:hover { background-color: #218838; }
-        .past-releases { display: inline-block; margin-bottom: 30px; font-size: 0.9em; color: #0056b3; text-decoration: underline; }
-        .past-releases:hover { color: #003d82; }
+  .box {
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    display: inline-block;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    max-width: 100%;
+    width: 600px;
+    text-align: left;
+  }
 
-        .screenshots-title { text-align: left; border-bottom: 2px solid #f0f8ff; padding-bottom: 5px; color: #555; font-size: 1.1em; margin-top: 10px; }
-        .screenshots { display: flex; overflow-x: auto; gap: 15px; padding: 15px 0; }
-        .screenshots::-webkit-scrollbar { height: 8px; }
-        .screenshots::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-        
-        .screenshots img { height: 250px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; }
-        .screenshots img:hover { transform: scale(1.03); }
+  /* ヘッダー */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
 
-        /* Modal Styles */
-        #magic-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
-        #magic-modal.show { display: flex; }
-        #magic-modal img { max-width: 80%; max-height: 80%; border-radius: 10px; box-shadow: 0 0 20px rgba(255,255,255,0.2); user-select: none; }
-        
-        /* Navigation Buttons */
-        .nav-btn { cursor: pointer; position: absolute; top: 50%; width: auto; padding: 20px; margin-top: -30px; color: white; font-weight: bold; font-size: 40px; transition: 0.3s; user-select: none; z-index: 1001; }
-        .nav-btn:hover { color: #bbb; }
-        .prev { left: 5%; }
-        .next { right: 5%; }
-    </style>
+  .app-icon {
+    height: 52px;
+    width: 52px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    background: #dce8f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+
+  h1 {
+    color: #0056b3;
+    font-size: 1.5em;
+    line-height: 1.2;
+  }
+
+  .author {
+    font-size: 0.85em;
+    color: #888;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .author a { color: #0056b3; text-decoration: none; font-weight: bold; }
+  .author a:hover { text-decoration: underline; }
+
+  .overview {
+    margin-bottom: 24px;
+    line-height: 1.7;
+    text-align: center;
+    color: #444;
+  }
+
+  /* セクション共通 */
+  .section-title {
+    border-bottom: 2px solid #e8f0f8;
+    padding-bottom: 5px;
+    color: #555;
+    font-size: 1.05em;
+    margin-bottom: 10px;
+    font-weight: bold;
+  }
+
+  .features-list {
+    font-size: 0.95em;
+    line-height: 1.7;
+    margin-bottom: 24px;
+    padding-left: 22px;
+    color: #444;
+  }
+  .features-list li { margin-bottom: 8px; }
+
+  /* 注意事項 */
+  .notes-title {
+    border-bottom: 2px solid #fce8e8;
+    padding-bottom: 5px;
+    color: #c0392b;
+    font-size: 1.05em;
+    margin-bottom: 10px;
+    font-weight: bold;
+  }
+
+  .notes-list {
+    font-size: 0.9em;
+    line-height: 1.7;
+    margin-bottom: 24px;
+    padding-left: 22px;
+    color: #c0392b;
+  }
+  .notes-list li { margin-bottom: 10px; }
+
+  .workaround {
+    background: #fff5f5;
+    border-left: 3px solid #e74c3c;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin-top: 8px;
+    font-size: 0.9em;
+    line-height: 1.7;
+    color: #c0392b;
+    list-style: none;
+    padding-left: 14px;
+  }
+
+  /* ダウンロードボタン */
+  .download-section {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 14px 24px;
+    background-color: #28a745;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 1em;
+    width: 100%;
+    transition: background-color 0.2s;
+  }
+  .btn:hover { background-color: #218838; }
+
+  .past-releases {
+    display: inline-block;
+    margin-top: 10px;
+    margin-bottom: 28px;
+    font-size: 0.9em;
+    color: #0056b3;
+    text-decoration: underline;
+  }
+  .past-releases:hover { color: #003d82; }
+
+  /* スクリーンショット */
+  .screenshots-title {
+    border-bottom: 2px solid #e8f0f8;
+    padding-bottom: 5px;
+    color: #555;
+    font-size: 1.05em;
+    margin-bottom: 12px;
+    font-weight: bold;
+  }
+
+  .screenshots {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding: 8px 0 12px;
+  }
+  .screenshots::-webkit-scrollbar { height: 6px; }
+  .screenshots::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+  .screenshots img {
+    height: 220px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .screenshots img:hover { transform: scale(1.03); }
+
+  /* スクリーンショットがない場合のプレースホルダー */
+  .screenshot-placeholder {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0 12px;
+  }
+  .placeholder-img {
+    height: 220px;
+    width: 120px;
+    background: #eef4fb;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aac;
+    font-size: 0.8em;
+    text-align: center;
+  }
+
+  /* モーダル */
+  #magic-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+  }
+  #magic-modal.show { display: flex; }
+  #magic-modal img {
+    max-width: 80%;
+    max-height: 80%;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(255,255,255,0.2);
+    user-select: none;
+  }
+  .nav-btn {
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    padding: 20px;
+    margin-top: -30px;
+    color: white;
+    font-weight: bold;
+    font-size: 40px;
+    transition: 0.3s;
+    user-select: none;
+    z-index: 1001;
+  }
+  .nav-btn:hover { color: #bbb; }
+  .prev { left: 5%; }
+  .next { right: 5%; }
+</style>
 </head>
 <body>
-    <div class="box">
-        <h1>
-            <img src="img/cc_appicon_sm.png" alt="アプリアイコン" class="app-icon">
-            接続回線確認アプリ
-        </h1>
-        
-        <p class="author">開発者: <a href="https://github.com/eightbrows" target="_blank">eightbrows</a></p>
-        
-        <p class="overview">現在の接続回線（Wi-Fi / モバイル）を素早く確認できる<br>Android用ウィジェットアプリです。</p>
-        
-        <div class="features-title">主な機能</div>
-        <ul class="features-list">
-            <li>ホーム画面のウィジェット表示で現在の使用している接続回線をひと目で確認。</li>
-            <li>モバイル回線の場合はギガ使用量、Wi-Fi回線の場合は電波強度を表示。</li>
-            <li>表示更新は30分毎の自動更新※1とタップによる手動更新の両方を実装。<br>　※1 毎回必ず更新される訳ではありません。</li>
-        </ul>
-        
-        <div class="notes-title">注意事項</div>
-        <ul class="notes-list">
-            <li>バッテリーセーバーまたはデータセーバー機能が有効な場合、正しく通信状態を取得できず「圏外」と表示されることがあります。</li>
-            <li><strong>【回避方法】</strong>正しく表示させるには、端末の「設定」>「アプリ」から当アプリを選択し、以下の2点をご確認ください。<br>
-            ・バッテリー設定を「制限なし」に変更する<br>
-            ・モバイルデータとWi-Fiの設定から「バックグラウンドデータの使用」および「モバイルデータの無制限利用」をオンにする<br>
-            （※お使いの機種により設定項目の名称が異なります）</li>
-        </ul>
-        
-        <a href="https://github.com/eightbrows/connect_checker/releases/latest/download/connect_checker-latest.apk" class="btn">最新版アプリをダウンロード (APK)</a>
-        <br>
-        
-        <a href="https://github.com/eightbrows/connect_checker/releases" target="_blank" class="past-releases">過去のバージョン（変更履歴）はこちら</a>
 
-        <div class="screenshots-title">スクリーンショット</div>
-        <div class="screenshots">
-            <img src="img/cc_01_wifi_sm.png" alt="画面1" onclick="openModal(0)">
-            <img src="img/cc_02_mobile_sm.png" alt="画面2" onclick="openModal(1)">
-            <img src="img/cc_03_noservice_sm.png" alt="画面3" onclick="openModal(2)">
-            <img src="img/cc_04_refresh_sm.png" alt="画面4" onclick="openModal(3)">
-            <img src="img/cc_11_initialconfig_sm.png" alt="画面5" onclick="openModal(4)">
-            <img src="img/cc_21_wifisetting1_sm.png" alt="画面6" onclick="openModal(5)">
-        </div>
-    </div>
+<div class="box">
 
-    <div id="magic-modal" onclick="closeModal(event)">
-        <span class="nav-btn prev" onclick="changeImage(-1, event)">&#10094;</span>
-        <img id="magic-img" src="">
-        <span class="nav-btn next" onclick="changeImage(1, event)">&#10095;</span>
-    </div>
+  <!-- ヘッダー -->
+  <div class="app-header">
+    <div class="app-icon">📡</div>
+    <h1>接続回線確認アプリ<br><small style="font-size:0.65em; color:#888;">Connect Checker</small></h1>
+  </div>
+  <p class="author">開発者: <a href="https://github.com/eightbrows" target="_blank">eightbrows</a></p>
 
-    <script>
-        let currentIdx = 0;
-        let images = [];
+  <!-- 概要 -->
+  <p class="overview">
+    Wi-Fi / モバイル回線をひと目で確認できる<br>Android用ウィジェットアプリです。
+  </p>
 
-        window.onload = function() {
-            images = document.querySelectorAll('.screenshots img');
-        };
+  <!-- 主な機能 -->
+  <div class="section-title">主な機能</div>
+  <ul class="features-list">
+    <li>ウィジェット上段でデータ接続回線の種別（Wi-Fi / モバイル / 圏外）を確認。</li>
+    <li>ウィジェット下段でモバイルデータの使用量を確認。</li>
+    <li>ウィジェットをタップして手動更新、約30分ごとの自動更新にも対応。</li>
+    <li>データ使用量のカウント開始日を設定可能。</li>
+  </ul>
 
-        function openModal(index) {
-            currentIdx = index;
-            document.getElementById('magic-img').src = images[currentIdx].src;
-            document.getElementById('magic-modal').classList.add('show');
-        }
+  <!-- 注意事項 -->
+  <div class="notes-title">⚠️ 注意事項</div>
+  <ul class="notes-list">
+    <li>自動更新が正しく動作しない場合は、「設定」→「アプリ」→（本アプリを選択）→「アプリのバッテリー使用量」→「バックグラウンドでの使用を許可」を「制限なし」に変更してください。<br><small style="color:#aaa;">※ 機種やOSバージョンによって設定項目の名称が異なる場合があります。</small></li>
+  </ul>
 
-        function closeModal(event) {
-            if (event.target.id === 'magic-modal') {
-                document.getElementById('magic-modal').classList.remove('show');
-            }
-        }
+  <!-- 動作環境 -->
+  <div class="section-title">動作環境</div>
+  <ul class="features-list">
+    <li>Android 8.0（API レベル 26）以上</li>
+  </ul>
+  <div class="section-title" style="margin-top: 16px;">必要な権限</div>
+  <ul class="features-list">
+    <li>
+      <strong>ACCESS_NETWORK_STATE</strong><br>
+      <span style="font-size:0.9em; color:#666;">ネットワーク接続の状態（Wi-Fi / モバイル回線の種別など）を取得するために使用します。インストール時に自動で付与されます。</span>
+    </li>
+    <li>
+      <strong>PACKAGE_USAGE_STATS</strong><br>
+      <span style="font-size:0.9em; color:#666;">モバイルデータの使用量を取得するために使用します。初回起動時に「使用状況へのアクセス」画面で<span style="color:#c0392b; font-weight:bold;">手動での許可が必要です。</span></span>
+    </li>
+  </ul>
 
-        function changeImage(step, event) {
-            event.stopPropagation(); 
-            currentIdx += step;
-            
-            if (currentIdx >= images.length) {
-                currentIdx = 0;
-            } else if (currentIdx < 0) {
-                currentIdx = images.length - 1;
-            }
-            
-            document.getElementById('magic-img').src = images[currentIdx].src;
-        }
-    </script>
+  <!-- ダウンロード -->
+  <div class="download-section">
+    <a href="https://github.com/eightbrows/connect_checker/releases/latest/download/connect_checker-latest.apk" class="btn">
+      最新版をダウンロード（apk）
+    </a>
+    <br>
+    <a href="https://github.com/eightbrows/connect_checker/releases" target="_blank" class="past-releases">
+      過去のバージョン（変更履歴）はこちら
+    </a>
+  </div>
+
+  <!-- スクリーンショット -->
+  <div class="screenshots-title">スクリーンショット</div>
+  <div class="screenshots">
+    <img src="img/cc_01_wifi_sm.png" alt="Wi-Fi接続時の表示" onclick="openModal(0)">
+    <img src="img/cc_02_mobile_sm.png" alt="モバイル回線接続時の表示" onclick="openModal(1)">
+    <img src="img/cc_03_noservice_sm.png" alt="圏外時の表示" onclick="openModal(2)">
+    <img src="img/cc_04_refresh_sm.png" alt="手動更新時の表示" onclick="openModal(3)">
+    <img src="img/cc_11_initialconfig_sm.png" alt="初期設定画面" onclick="openModal(4)">
+    <img src="img/cc_21_wifisetting1_sm.png" alt="Wi-Fi設定画面" onclick="openModal(5)">
+  </div>
+
+</div>
+
+<!-- モーダル -->
+<div id="magic-modal" onclick="closeModal(event)">
+  <span class="nav-btn prev" onclick="changeImage(-1, event)">&#10094;</span>
+  <img id="magic-img" src="">
+  <span class="nav-btn next" onclick="changeImage(1, event)">&#10095;</span>
+</div>
+
+<script>
+  let currentIdx = 0;
+  let images = [];
+
+  window.onload = function() {
+    images = document.querySelectorAll('.screenshots img');
+
+    // スワイプ検知
+    const modal = document.getElementById('magic-modal');
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    modal.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    modal.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+
+      // 縦スクロールより横移動が大きい場合のみスワイプ判定（50px以上）
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+        dx < 0 ? changeImageDirect(1) : changeImageDirect(-1);
+      }
+    }, { passive: true });
+  };
+
+  function openModal(index) {
+    currentIdx = index;
+    document.getElementById('magic-img').src = images[currentIdx].src;
+    document.getElementById('magic-modal').classList.add('show');
+  }
+
+  function closeModal(event) {
+    if (event.target.id === 'magic-modal') {
+      document.getElementById('magic-modal').classList.remove('show');
+    }
+  }
+
+  function changeImage(step, event) {
+    event.stopPropagation();
+    changeImageDirect(step);
+  }
+
+  function changeImageDirect(step) {
+    currentIdx += step;
+    if (currentIdx >= images.length) currentIdx = 0;
+    else if (currentIdx < 0) currentIdx = images.length - 1;
+    document.getElementById('magic-img').src = images[currentIdx].src;
+  }
+</script>
+
 </body>
 </html>
