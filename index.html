@@ -125,6 +125,22 @@
     }
   }
 
+  /* ダウンロードボタン */
+  .btn-dl {
+    display: block;
+    text-align: center;
+    background: #0056b3;
+    color: white;
+    text-decoration: none;
+    font-size: 0.85em;
+    font-weight: bold;
+    padding: 9px 14px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    margin-top: 4px;
+  }
+  .btn-dl:hover { background: #003d80; }
+
   /* フッター */
   .page-footer {
     text-align: center;
@@ -148,7 +164,7 @@
     <div class="card-header">
       <img class="card-icon" src="img/cc_appicon_sm.png" alt="接続回線確認アプリ アイコン">
       <div>
-        <div class="card-title"><a href="https://github.com/eightbrows/connect_checker" target="_blank">接続回線確認アプリ</a></div>
+        <div class="card-title"><a href="connect_checker/index.html">接続回線確認アプリ</a></div>
         <div class="card-subtitle">Connect Checker</div>
       </div>
     </div>
@@ -160,6 +176,7 @@
       <span class="tag">データ使用量</span>
       <span class="tag">Android 8.0+</span>
     </div>
+    <a class="btn-dl" href="https://github.com/eightbrows/connect_checker/releases/latest/download/connect_checker-latest.apk">最新版をダウンロード（apk）</a>
   </div>
 
   <!-- 現在位置記録アプリ -->
@@ -172,13 +189,14 @@
       </div>
     </div>
     <p class="card-desc">
-      GNSSの測位結果と衛星状態を記録する Androidアプリ。軌跡・数値・衛星情報を表示する。
+      GNSSの測位結果と衛星状態を記録する Androidアプリ。軌跡・数値・衛星情報を表示。地図API不要。
     </p>
     <div class="card-tags">
       <span class="tag">位置記録</span>
       <span class="tag">衛星情報</span>
       <span class="tag">Android 8.0+</span>
     </div>
+    <a class="btn-dl" href="https://github.com/eightbrows/GpsLogger/releases/latest/download/gpslogger-latest.apk">最新版をダウンロード（apk）</a>
   </div>
 
   <!-- 通話時間確認アプリ -->
@@ -198,6 +216,7 @@
       <span class="tag">通話料金</span>
       <span class="tag">Android 8.0+</span>
     </div>
+    <a class="btn-dl" href="https://github.com/eightbrows/CallTimeChecker/releases/latest/download/calltimechecker-latest.apk">最新版をダウンロード（apk）</a>
   </div>
 
 </div>
