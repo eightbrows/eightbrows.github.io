@@ -106,22 +106,10 @@
     padding: 2px 8px;
   }
 
-  /* 3枚目だけ中央配置 */
-  .card-grid .card:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
-    max-width: 420px;
-    margin: 0 auto;
-    width: 100%;
-  }
-
   /* スマホ対応 */
   @media (max-width: 560px) {
     .card-grid {
       grid-template-columns: 1fr;
-    }
-    .card-grid .card:last-child:nth-child(odd) {
-      grid-column: auto;
-      max-width: none;
     }
   }
 
@@ -237,6 +225,28 @@
     </div>
     <a class="btn-detail" href="https://github.com/eightbrows/CallTimeChecker" target="_blank">詳細を見る</a>
     <a class="btn-dl" href="https://github.com/eightbrows/CallTimeChecker/releases/latest/download/calltimechecker-latest.apk">最新版をダウンロード（apk）</a>
+  </div>
+
+
+  <!-- NavHUD -->
+  <div class="card">
+    <div class="card-header">
+      <img class="card-icon" src="img/nhud_appicon_sm.webp" alt="NavHUD アイコン">
+      <div>
+        <div class="card-title"><a href="https://github.com/eightbrows/NavHUD" target="_blank">目標針路案内アプリ</a></div>
+        <div class="card-subtitle">NavHUD</div>
+      </div>
+    </div>
+    <p class="card-desc">
+      航空機のND風の画面でWP（目標地点）までの方位・距離・時刻を案内するアプリ。地図APIや通信不要で、電波が届かない場所でも利用可能。
+    </p>
+    <div class="card-tags">
+      <span class="tag">ナビゲーション</span>
+      <span class="tag">GPS</span>
+      <span class="tag">Android 8.0+</span>
+    </div>
+    <a class="btn-detail" href="https://github.com/eightbrows/NavHUD" target="_blank">詳細を見る</a>
+    <a class="btn-dl" href="https://github.com/eightbrows/NavHUD/releases/latest/download/navhud-latest.apk">最新版をダウンロード（apk）</a>
   </div>
 
 </div>
