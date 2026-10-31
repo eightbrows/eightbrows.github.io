@@ -10,13 +10,13 @@
 :root{
   --bg:#f3f5f4; --panel:#ffffff; --fg:#17201c; --muted:#5d6b64; --line:#d5ddd9;
   --accent:#0f7a52; --accent-fg:#ffffff; --warn:#b4471f; --off:#8a948f; --hl:#ffb000;
-  --src-gsi:#1f5fa8; --src-osm:#7b3fa8;
+  --src-gsi:#1f5fa8; --src-osm:#7b3fa8; --trk:#d6336c;
   --mono:ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;
   --sans:system-ui,-apple-system,"Segoe UI","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0d1210; --panel:#141b18; --fg:#dfe8e3; --muted:#8fa098; --line:#28332e;
-  --accent:#35c48a; --accent-fg:#06110c; --warn:#f08a5d; --off:#6e7a74; --src-gsi:#6ea8ff; --src-osm:#c08af0; color-scheme:dark;
+  --accent:#35c48a; --accent-fg:#06110c; --warn:#f08a5d; --off:#6e7a74; --src-gsi:#6ea8ff; --src-osm:#c08af0; --trk:#ff6b9a; color-scheme:dark;
 }}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -108,6 +108,22 @@ body.pending #cross{display:block}
 #mtools{position:absolute;right:calc(10px + env(safe-area-inset-right));top:130px;z-index:1000;flex-direction:column;gap:14px;width:54px}
 #mtools button{box-shadow:0 1px 4px rgba(0,0,0,.3);padding:6px 0;font-size:11.5px;line-height:1.25;white-space:normal}
 /* スマホの拡大縮小ボタン（Leaflet標準の約2倍）。右列の一番下 */
+/* 軌跡メニュー（右列の左に出す） */
+#btnTrk.on{background:color-mix(in srgb,var(--trk) 16%,var(--panel));border-color:var(--trk)}
+#trkMenu{position:absolute;right:calc(74px + env(safe-area-inset-right));top:130px;z-index:1150;width:min(300px,calc(100% - 94px));max-height:calc(100% - 150px);overflow:auto;background:var(--panel);border:1px solid var(--trk);border-radius:8px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:8px}
+#trkMenu[hidden]{display:none}
+.tinfo{font-size:12px;line-height:1.5;color:var(--muted)}
+.tinfo b{color:var(--fg);font-size:13px}
+.tinfo .tsw{display:inline-block;width:14px;height:3px;background:var(--trk);vertical-align:3px;margin-right:6px;border-radius:2px}
+.tbtns{display:flex;flex-wrap:wrap;gap:6px}
+.tbtns .btn,.tbtns button{padding:6px 10px;font-size:13px}
+#trkPick{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+#trkPick[hidden]{display:none}
+#trkPick .ph{font-size:12px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+#trkPick button{display:block;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:8px;background:transparent;white-space:normal;font-size:13px}
+#trkPick button:last-child{border-bottom:0}
+#trkPick button:hover{background:color-mix(in srgb,var(--trk) 10%,var(--panel))}
+#trkPick small{display:block;color:var(--muted);font-size:11.5px;font-family:var(--mono)}
 #mtools .mzoom{display:flex;flex-direction:column;margin-top:4px;box-shadow:0 1px 4px rgba(0,0,0,.3);border-radius:6px}
 #mtools .mzoom button{box-shadow:none;height:56px;font-size:26px;font-weight:700;padding:0;border-radius:0}
 #mtools .mzoom button:first-child{border-radius:6px 6px 0 0;border-bottom:0}
@@ -191,7 +207,20 @@ body.pending #cross{display:block}
       <button id="btnFitM">全体</button>
       <button id="btnUndoM">戻す</button>
       <button id="btnTap">タップ追加</button>
+      <button id="btnTrk" title="GpsLoggerの軌跡を表示">軌跡</button>
       <div class="mzoom"><button id="btnZin" aria-label="拡大" title="拡大">＋</button><button id="btnZout" aria-label="縮小" title="縮小">－</button></div>
+    </div>
+    <div id="trkMenu" hidden>
+      <div id="trkInfo" class="tinfo"></div>
+      <div id="trkPick" hidden></div>
+      <div class="tbtns">
+        <label class="btn" for="trkFile">読み込み</label>
+        <button id="trkToggle">非表示</button>
+        <button id="trkFit">全体</button>
+        <button id="trkClear" class="danger">消去</button>
+        <button id="trkClose">閉じる</button>
+      </div>
+      <input id="trkFile" type="file" accept=".zip,.csv,application/zip,text/csv,*/*" hidden>
     </div>
     <div id="mbar" class="mob">
       <div id="msel" hidden>
@@ -281,6 +310,8 @@ layers["地理院 淡色"].addTo(map);
 const layerCtrl=L.control.layers(layers,null,{position:"topright"}).addTo(map);
 map.on("baselayerchange",()=>layerCtrl.collapse());   // スマホでは選んだら閉じる
 L.control.scale({imperial:false}).addTo(map);
+map.createPane("trk").style.zIndex=350;   // 軌跡はWPの線・マーカーより下に描く
+const gTrk=L.layerGroup().addTo(map);
 const gRoute=L.layerGroup().addTo(map), gCirc=L.layerGroup().addTo(map), gMk=L.layerGroup().addTo(map);
 
 map.on("click",e=>{
@@ -826,6 +857,121 @@ $("btnEle").addEventListener("click",async()=>{
   renderList();save();
   toast(`標高を ${ok} 件入れました`+(ng?`（${ng} 件は取得できず。海上・国外・通信エラーなど）`:""));
 });
+
+/* ---------- 軌跡（GpsLogger エクスポートZIP／track.csv）。表示のみ・1本だけ・保存しない ---------- */
+let trk=null;           // {name, segs:[[{t,lat,lon}]], n, dist, t0, t1}
+let trkSessions=null;   // 複数セッションのZIPを読んだときの候補
+// ZIP: 中央ディレクトリを読み、対象エントリだけ展開（無圧縮 / deflate）
+async function unzipEntries(buf,want){
+  const dv=new DataView(buf),u8=new Uint8Array(buf);
+  let eocd=-1;
+  for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65557);i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;}}
+  if(eocd<0)throw new Error("ZIPとして読めませんでした");
+  const cnt=dv.getUint16(eocd+10,true);let p=dv.getUint32(eocd+16,true);
+  if(p===0xFFFFFFFF)throw new Error("この形式のZIP（ZIP64）には対応していません");
+  const out=[],dec=new TextDecoder("utf-8");
+  for(let k=0;k<cnt;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)throw new Error("ZIPの構造が壊れています");
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true);
+    const nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nl));
+    p+=46+nl+el+cl;
+    if(!want(name))continue;
+    const ds=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true);
+    const raw=u8.subarray(ds,ds+csize);
+    let data;
+    if(method===0)data=raw;
+    else if(method===8){
+      if(typeof DecompressionStream==="undefined")throw new Error("このブラウザはZIPの展開に対応していません");
+      data=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+    }else throw new Error("未対応の圧縮形式です");
+    out.push({name,text:dec.decode(data)});
+  }
+  return out;
+}
+// track.csv → 区間の配列（gap_before=true で区切る。列は名前で引く）
+function parseTrackCsv(text){
+  const lines=text.replace(/^﻿/,"").split(/\r?\n/);
+  const head=(lines[0]||"").split(",").map(h=>h.trim());
+  const ix=n=>head.indexOf(n);
+  const iT=ix("epoch_ms"),iLa=ix("latitude"),iLo=ix("longitude"),iG=ix("gap_before");
+  if(iT<0||iLa<0||iLo<0)return null;
+  const segs=[];
+  for(let i=1;i<lines.length;i++){
+    const ln=lines[i];if(!ln.trim())continue;
+    const c=ln.split(",");
+    const t=Number(c[iT]),la=Number(c[iLa]),lo=Number(c[iLo]);
+    if(!isFinite(t)||!isFinite(la)||!isFinite(lo)||c[iLa]===""||c[iLo]==="")continue;
+    if(la<-90||la>90||lo<-180||lo>180)continue;
+    if(!segs.length||(iG>=0&&c[iG].trim()==="true"))segs.push([]);
+    segs[segs.length-1].push({t,lat:la,lon:lo});
+  }
+  return segs.length?segs:null;
+}
+function makeTrack(name,segs){
+  let n=0,dist=0;
+  segs.forEach(sg=>{n+=sg.length;for(let i=1;i<sg.length;i++)dist+=hav(sg[i-1],sg[i]);});
+  return {name,segs,n,dist,t0:segs[0][0].t,t1:segs[segs.length-1].slice(-1)[0].t};
+}
+const fmtT=ms=>new Date(ms).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const fmtSess=name=>{const m=name.match(/session_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);return m?`${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]} 開始`:name;};
+$("trkFile").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{
+    const buf=await f.arrayBuffer();
+    const u=new Uint8Array(buf,0,4);
+    let list=[];
+    if(u[0]===0x50&&u[1]===0x4b){          // ZIP
+      const ents=await unzipEntries(buf,n=>/^session_\d{8}_\d{6}\/track\.csv$/.test(n));
+      ents.sort((a,b)=>a.name<b.name?-1:1);  // フォルダ名＝開始時刻順
+      for(const en of ents){const sg=parseTrackCsv(en.text);if(sg)list.push(makeTrack(en.name.split("/")[0],sg));}
+      if(!list.length)throw new Error("ZIPの中に読める軌跡（session_…/track.csv）がありません");
+    }else{                                   // track.csv 単体
+      const sg=parseTrackCsv(new TextDecoder("utf-8").decode(buf));
+      if(!sg)throw new Error("軌跡のCSVとして読めませんでした（epoch_ms, latitude, longitude の列が必要です）");
+      list=[makeTrack(f.name.replace(/\.[^.]+$/,""),sg)];
+    }
+    if(list.length===1){trkSessions=null;showTrack(list[0]);}
+    else{trkSessions=list;$("trkMenu").hidden=false;renderTrkMenu();}
+  }catch(err){toast("軌跡を読み込めません: "+err.message,5000);}
+});
+function showTrack(t){
+  trk=t;trk.visible=true;trkSessions=null;
+  drawTrack();fitTrack();renderTrkMenu();
+  $("trkMenu").hidden=true;   // 軌跡が見えるようにメニューを閉じる
+  toast(`軌跡を表示しました（${t.n} 点・${t.segs.length} 区間）`);
+}
+function drawTrack(){
+  gTrk.clearLayers();
+  if(!trk||!trk.visible){syncTrkBtn();return;}
+  const col=getCss("--trk");
+  trk.segs.forEach(sg=>L.polyline(sg.map(p=>[p.lat,p.lon]),{pane:"trk",color:col,weight:3,opacity:.85,interactive:false}).addTo(gTrk));
+  const a=trk.segs[0][0],z=trk.segs[trk.segs.length-1].slice(-1)[0];
+  L.circleMarker([a.lat,a.lon],{pane:"trk",radius:6,color:"#fff",weight:2,fillColor:col,fillOpacity:1,interactive:false}).addTo(gTrk);
+  L.circleMarker([z.lat,z.lon],{pane:"trk",radius:6,color:col,weight:3,fillColor:"#fff",fillOpacity:1,interactive:false}).addTo(gTrk);
+  syncTrkBtn();
+}
+function fitTrack(){if(!trk)return;map.fitBounds(L.latLngBounds(trk.segs.flat().map(p=>[p.lat,p.lon])),{padding:[40,40],maxZoom:17});}
+function syncTrkBtn(){$("btnTrk").classList.toggle("on",!!(trk&&trk.visible));}
+function renderTrkMenu(){
+  const info=$("trkInfo"),pick=$("trkPick");
+  if(trk){
+    info.innerHTML=`<span class="tsw"></span><b>${esc(fmtSess(trk.name))}</b><br>${fmtT(trk.t0)}〜${fmtT(trk.t1)}<br>${trk.n} 点・${trk.segs.length} 区間・${fmtD(trk.dist)}<br>●始点 ○終点`;
+  }else info.innerHTML=`GpsLogger のエクスポートZIP（または track.csv）を読み込むと、軌跡を1本表示します。表示のみで、WPリストやCSVには影響しません。`;
+  if(trkSessions){
+    pick.hidden=false;
+    pick.innerHTML=`<div class="ph">${trkSessions.length} セッション。表示するものを選んでください</div>`+trkSessions.map((t,i)=>
+      `<button data-i="${i}">${esc(fmtSess(t.name))}<small>${fmtT(t.t0)}〜${fmtT(t.t1)}　${t.n}点・${t.segs.length}区間・${fmtD(t.dist)}</small></button>`).join("");
+  }else{pick.hidden=true;pick.innerHTML="";}
+  $("trkToggle").disabled=$("trkFit").disabled=$("trkClear").disabled=!trk;
+  $("trkToggle").textContent=trk&&!trk.visible?"表示":"非表示";
+}
+$("trkPick").addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(b)showTrack(trkSessions[+b.dataset.i]);});
+$("btnTrk").addEventListener("click",()=>{const m=$("trkMenu");m.hidden=!m.hidden;if(!m.hidden)renderTrkMenu();});
+$("trkClose").addEventListener("click",()=>{$("trkMenu").hidden=true;});
+$("trkToggle").addEventListener("click",()=>{if(!trk)return;trk.visible=!trk.visible;drawTrack();renderTrkMenu();});
+$("trkFit").addEventListener("click",()=>{if(trk){if(!trk.visible){trk.visible=true;drawTrack();renderTrkMenu();}fitTrack();}});
+$("trkClear").addEventListener("click",()=>{trk=null;trkSessions=null;drawTrack();renderTrkMenu();toast("軌跡を消去しました");});
 
 /* ---------- その他 ---------- */
 function fit(){if(wps.length)map.fitBounds(L.latLngBounds(wps.map(w=>[w.lat,w.lon])),{padding:[40,40],maxZoom:16});}
