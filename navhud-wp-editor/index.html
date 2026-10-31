@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NavHUD WPエディタ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* PC: 地図（左）＋WPリスト（右）／スマホ: 地図とリストを下部タブで切替 */
+:root{
+  --bg:#f3f5f4; --panel:#ffffff; --fg:#17201c; --muted:#5d6b64; --line:#d5ddd9;
+  --accent:#0f7a52; --accent-fg:#ffffff; --warn:#b4471f; --off:#8a948f; --hl:#ffb000;
+  --src-gsi:#1f5fa8; --src-osm:#7b3fa8;
+  --mono:ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0d1210; --panel:#141b18; --fg:#dfe8e3; --muted:#8fa098; --line:#28332e;
+  --accent:#35c48a; --accent-fg:#06110c; --warn:#f08a5d; --off:#6e7a74; --src-gsi:#6ea8ff; --src-osm:#c08af0; color-scheme:dark;
+}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--sans);display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));padding-top:max(8px,env(safe-area-inset-top));border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:15px;margin:0 8px 0 0;letter-spacing:.02em}
+header h1 small{color:var(--muted);font-weight:400;margin-left:6px}
+.sp{flex:1}
+button,.btn{-webkit-tap-highlight-color:transparent;font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;touch-action:manipulation}
+button:hover,.btn:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button.danger{color:var(--warn)}
+button.on{background:color-mix(in srgb,var(--accent) 18%,var(--panel));border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.btn:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+input,select,textarea{font:inherit;font-size:13px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:4px 6px;min-width:0}
+input.bad{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--bg))}
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 440px}
+#mapWrap{position:relative;min-height:0}
+#map{position:absolute;inset:0}
+aside{min-height:0;min-width:0;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--panel)}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+.bar label{display:flex;gap:4px;align-items:center;color:var(--muted);font-size:12px}
+.stats{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+#hint{font-size:12px;color:var(--muted);padding:6px 12px;border-bottom:1px solid var(--line)}
+#hint b{color:var(--accent)}
+#list{flex:1;overflow:auto;padding:6px 8px 24px;-webkit-overflow-scrolling:touch}
+/* WPカード（リスト）: 地図の編集パネルと同じ2行構成＋座標・距離・並べ替えの行 */
+.wp{border:1px solid var(--line);border-radius:8px;padding:6px;margin:6px 0;display:flex;flex-direction:column;gap:5px;background:var(--panel)}
+.wp.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.wp.off{opacity:.62}
+.wp .pr1 b{cursor:pointer;border-radius:6px;padding:4px 0}
+.wp.off .pr1 b{color:var(--off)}
+.pr3{display:flex;gap:6px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pr3 .coord{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}
+.pr3 .dist{flex:1;min-width:0}
+.pr3 button{padding:3px 10px;font-size:12px}
+#tools summary{display:none}
+/* 検索結果 */
+/* 地図左上の検索バー（PC・スマホ共通）。レイヤー切替（右上）と重ならないよう右端を空ける */
+#sbar{position:absolute;top:calc(10px + env(safe-area-inset-top,0px)*0);left:calc(10px + env(safe-area-inset-left));right:calc(64px + env(safe-area-inset-right));max-width:460px;z-index:1100;display:flex;flex-direction:column;gap:4px}
+#sform{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+#sform input{flex:1;min-width:0;border:0;background:transparent;font-size:16px;padding:6px 8px}
+#sform input:focus-visible{outline:none}
+#sform:focus-within{border-color:var(--accent)}
+#sform button{padding:6px 9px}
+#sform #qClear{padding:6px 7px}
+/* レイヤー切替は開いている間だけ検索欄の上に重ねる（選ぶと自動で閉じる） */
+.leaflet-top.leaflet-right{z-index:1200}
+.leaflet-top.leaflet-left{top:54px}
+#sres{border:1px solid var(--line);border-radius:8px;max-height:min(50vh,360px);overflow:auto;background:var(--panel);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+#sres .sh{display:flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;color:var(--muted);position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line)}
+#sres .sh span{flex:1}
+#sres .si{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:8px 12px;background:transparent;white-space:normal}
+#sres .si:hover{background:color-mix(in srgb,var(--accent) 10%,var(--panel))}
+#sres .si b{display:block;font-size:14px}
+#sres .si small{display:block;color:var(--muted);font-size:11.5px;line-height:1.35}
+#sres .src{font-size:10.5px;color:var(--muted);padding:6px 12px}
+#sres .src.cred{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line)}
+#sres .src.warn{color:var(--warn);font-size:12px}
+#sres .sh button{padding:4px 8px;font-size:12px}
+#sres .sh span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#sres .sosm{padding:6px 12px;border-bottom:1px solid var(--line);position:sticky;top:37px;background:var(--panel)}
+#sres .sosm button{width:100%;border-color:var(--accent);color:var(--accent);font-weight:600}
+.kind{display:inline-block;font-size:10px;font-weight:600;padding:0 5px;margin-right:6px;border-radius:3px;vertical-align:2px;border:1px solid}
+/* 検索先の印: 地理院=青、OSM=紫（操作ボタンの緑・警告の橙・選択の黄と区別） */
+.k-osm{color:var(--src-osm);border-color:var(--src-osm)}
+.k-gsi{color:var(--src-gsi);border-color:var(--src-gsi)}
+.k-xy{color:var(--muted);border-color:var(--line)}
+/* 検索結果を選んだあと、地図上に出す案内 */
+body.pending #cross{display:block}
+#toast{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:7px 14px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:2000;max-width:90vw}
+#toast.show{opacity:.95}
+.empty{color:var(--muted);padding:20px 8px;font-size:13px}
+/* 地図マーカー */
+.wpm{background:var(--accent);color:var(--accent-fg);border:2px solid #fff;border-radius:50%;width:26px!important;height:26px!important;margin:-13px 0 0 -13px!important;display:flex;align-items:center;justify-content:center;font:700 12px var(--mono);box-shadow:0 1px 3px rgba(0,0,0,.45)}
+.wpm.off{background:var(--off)}
+.wpm.sel{outline:3px solid var(--hl)}
+
+/* 地図上の操作部品（十字・右列・追加ボタン・編集パネル）はPC・スマホ共通 */
+.mob{display:flex}
+#tabs{display:none}
+#cross{display:block}
+#msel[hidden]{display:none}
+.leaflet-control-zoom{display:none}
+#cross{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;z-index:500;pointer-events:none}
+#cross::before,#cross::after{content:"";position:absolute;background:var(--warn);box-shadow:0 0 0 1px #fff}
+#cross::before{left:16px;top:0;width:2px;height:34px}
+#cross::after{top:16px;left:0;height:2px;width:34px}
+#mtools{position:absolute;right:calc(10px + env(safe-area-inset-right));top:130px;z-index:1000;flex-direction:column;gap:14px;width:54px}
+#mtools button{box-shadow:0 1px 4px rgba(0,0,0,.3);padding:6px 0;font-size:11.5px;line-height:1.25;white-space:normal}
+/* スマホの拡大縮小ボタン（Leaflet標準の約2倍）。右列の一番下 */
+#mtools .mzoom{display:flex;flex-direction:column;margin-top:4px;box-shadow:0 1px 4px rgba(0,0,0,.3);border-radius:6px}
+#mtools .mzoom button{box-shadow:none;height:56px;font-size:26px;font-weight:700;padding:0;border-radius:0}
+#mtools .mzoom button:first-child{border-radius:6px 6px 0 0;border-bottom:0}
+#mtools .mzoom button:last-child{border-radius:0 0 6px 6px}
+#mbar{position:absolute;left:calc(10px + env(safe-area-inset-left));right:calc(10px + env(safe-area-inset-right));bottom:30px;z-index:1000;flex-direction:column;gap:6px;align-items:stretch}
+/* 地図上の選択WP編集パネル（2行） */
+#msel{display:flex;flex-direction:column;gap:5px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:6px;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.pr1{display:flex;gap:6px;align-items:center}
+.pr1 b{color:var(--accent);font-family:var(--mono);font-size:14px;min-width:36px;text-align:center}
+#msel.off .pr1 b{color:var(--off)}
+.pr1 .name{flex:1;min-width:0}
+.pr1 button{padding:6px 9px}
+.pen{display:flex;align-items:center;gap:3px;font-size:13px;white-space:nowrap}
+.pr2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.pr2 label{display:flex;flex-direction:column;font-size:10px;color:var(--muted);min-width:0;line-height:1.3}
+.pr2 input{width:100%;font-family:var(--mono);padding:4px 5px;font-variant-numeric:tabular-nums}
+.pr2 input::placeholder{font-size:11px}
+/* 標高欄の右端の再取得ボタン */
+.eleBox{position:relative;display:block}
+.pr2 .eleBox input{padding-right:24px}
+.pr2 .eleBtn{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:22px;height:22px;padding:0;border:0;background:transparent;color:var(--accent);font-size:15px;line-height:22px;border-radius:4px}
+.pr2 .eleBtn:hover{background:color-mix(in srgb,var(--accent) 15%,transparent)}
+.pr2 .eleBtn:disabled{opacity:.4}
+#btnAddC{font-size:16px;font-weight:700;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+#tabs{border-top:1px solid var(--line);background:var(--panel);padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#tabs button{flex:1;border:0;border-radius:0;background:transparent;padding:12px 0;font-size:14px;color:var(--muted);border-top:3px solid transparent}
+#tabs button[aria-pressed="true"]{color:var(--accent);font-weight:700;border-top-color:var(--accent)}
+
+@media (max-width:820px){
+  header{padding-block:6px}
+  header h1 small{display:none}
+  main{grid-template-columns:minmax(0,1fr)}
+  body.v-map aside{display:none}
+  body.v-list #mapWrap{display:none}
+  aside{border-left:0}
+  #tabs{display:flex}
+  button,.btn{padding:8px 12px;font-size:14px}
+  input,select,textarea{font-size:16px;padding:6px 8px}
+  header h1{font-size:14px;margin-right:0}
+  header{gap:6px}
+  header .btn,header button{padding:7px 10px}
+  .pc{display:none}
+  #tools{border-bottom:1px solid var(--line)}
+  #tools summary{display:list-item;padding:10px 12px;font-size:14px;color:var(--muted);cursor:pointer}
+  #tools .bar:last-child{border-bottom:0}
+  .pr3{font-size:11.5px}
+  .pr3 button{padding:6px 14px;font-size:14px}
+  #hint .tip{display:none}
+  .leaflet-control-attribution{font-size:9.5px}
+  #toast{bottom:auto;top:62%}
+}
+/* PC: 検索で移動したときだけ地図右下に追加ボタンを出す */
+/* PC: 地図が広いので追加ボタンと編集パネルの幅を抑える（右列と重ならない） */
+@media (min-width:821px){#mbar{right:auto;width:min(560px,calc(100% - 100px))}}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body class="v-map">
+<header>
+  <h1>NavHUD WPエディタ<small>CSV: lat,lon,ele,name,target_time,deadline_time,enabled,radius</small></h1>
+  <span class="sp"></span>
+  <label class="btn" for="fileIn">読み込み</label>
+  <input id="fileIn" type="file" accept=".csv,.gpx,.txt,text/csv,application/gpx+xml,text/plain,*/*" hidden>
+  <button id="btnExport" class="primary"><span class="pc">CSV</span>書き出し</button>
+</header>
+<main>
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div id="cross" class="mob" aria-hidden="true"></div>
+    <div id="sbar">
+      <form id="sform" role="search">
+        <input id="q" type="text" placeholder="地名・住所・座標で検索" enterkeyhint="search" autocomplete="off" aria-label="地名・住所・座標">
+        <button type="button" id="qClear" hidden aria-label="クリア" title="クリア">✕</button>
+        <button type="button" id="qHist" title="検索履歴">履歴</button>
+        <button type="submit" class="primary">検索</button>
+      </form>
+      <div id="sres" hidden></div>
+    </div>
+    <div id="mtools" class="mob">
+      <button id="btnLoc">現在地</button>
+      <button id="btnFitM">全体</button>
+      <button id="btnUndoM">戻す</button>
+      <button id="btnTap">タップ追加</button>
+      <div class="mzoom"><button id="btnZin" aria-label="拡大" title="拡大">＋</button><button id="btnZout" aria-label="縮小" title="縮小">－</button></div>
+    </div>
+    <div id="mbar" class="mob">
+      <div id="msel" hidden>
+        <div class="pr1">
+          <b id="pNo">WP1</b>
+          <input id="pName" class="name" data-f="name" placeholder="名前" aria-label="名前">
+          <label class="pen"><input type="checkbox" data-f="enabled">有効</label>
+          <button id="pDel" class="danger">削除</button>
+          <button id="btnDesel" aria-label="選択を解除" title="選択を解除">✕</button>
+        </div>
+        <div class="pr2">
+          <label>標高 m<span class="eleBox"><input data-f="ele" inputmode="decimal"><button type="button" class="eleBtn" data-act="ele" title="標高を取り直す" aria-label="標高を取り直す">↻</button></span></label>
+          <label>半径 m<input data-f="radius" inputmode="numeric" placeholder="既定"></label>
+          <label>目標時刻<input data-f="target_time" inputmode="numeric" placeholder="1100→11:00"></label>
+          <label>締切時刻<input data-f="deadline_time" inputmode="numeric" placeholder="1100→11:00"></label>
+        </div>
+      </div>
+      <button id="btnAddC" class="primary">＋ 十字の位置に追加</button>
+    </div>
+  </div>
+  <aside>
+    <details id="tools" open>
+    <summary>ツール・書き出し設定</summary>
+    <div class="bar">
+      <button id="btnUndo" title="Ctrl+Z">元に戻す</button>
+      <button id="btnEle" title="ele が空のWPに国土地理院の標高をまとめて入れる">空欄の標高を一括取得</button>
+      <button id="btnFit">全体表示</button>
+      <label><input id="clickAdd" type="checkbox"> 地図タップで追加</label>
+      <label title="WPを追加・移動したとき、国土地理院の標高を自動で入れる"><input id="autoEle" type="checkbox" checked> 標高を自動取得</label>
+      <label>既定半径 <input id="defR" type="number" value="30" min="1" style="width:60px"> m</label>
+      <span class="sp"></span>
+      <button id="btnClear" class="danger">全削除</button>
+    </div>
+    <div class="bar">
+      <label>ファイル名 <input id="fname" value="waypoints.csv" size="14"></label>
+      <select id="enc" aria-label="文字コード">
+        <option value="bom">UTF-8（BOM付き・Excel向け）</option>
+        <option value="utf8">UTF-8（BOMなし）</option>
+      </select>
+    </div>
+    <div class="bar">
+      <span id="cacheInfo" class="stats"></span>
+      <button id="btnCacheClr" title="OSMのOSM検索で保存した結果（30日間保存）を消去">保存を消去</button>
+    </div>
+    </details>
+    <div id="hint"></div>
+    <div id="list"></div>
+  </aside>
+</main>
+<nav id="tabs">
+  <button data-v="map" aria-pressed="true">地図</button>
+  <button data-v="list" aria-pressed="false">リスト <span id="tabN"></span></button>
+</nav>
+<div id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+const COLS=["lat","lon","ele","name","target_time","deadline_time","enabled","radius"];
+const TIME_RE=/^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+// 時刻の入力を正規化: 1100→11:00, 830→8:30, 083000→8:30:00。全角数字・全角コロンも可。
+// 解釈できないものはそのまま返す（赤枠で知らせる）
+function normTime(v){
+  v=String(v).trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[：]/g,":");
+  let m;
+  if((m=v.match(/^(\d{1,2})(\d{2})$/)))v=`${+m[1]}:${m[2]}`;
+  else if((m=v.match(/^(\d{2})(\d{2})(\d{2})$/)))v=`${+m[1]}:${m[2]}:${m[3]}`;
+  return v;
+}
+let wps=[];          // {lat,lon,ele,name,target_time,deadline_time,enabled,radius}
+let sel=-1;
+let hist=[];
+const $=id=>document.getElementById(id);
+const mq=window.matchMedia("(max-width:820px)");
+const isMobile=()=>mq.matches;
+
+/* ---------- 地図 ---------- */
+const gsi=(id,ext,max)=>L.tileLayer(`https://cyberjapandata.gsi.go.jp/xyz/${id}/{z}/{x}/{y}.${ext}`,
+  {maxZoom:18,maxNativeZoom:max,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'});
+const layers={
+  "地理院 標準":gsi("std","png",18),
+  "地理院 淡色":gsi("pale","png",18),
+  "地理院 写真":gsi("seamlessphoto","jpg",18)
+};
+const map=L.map("map",{zoomControl:true}).setView([34.6937,135.5023],11);
+layers["地理院 淡色"].addTo(map);
+const layerCtrl=L.control.layers(layers,null,{position:"topright"}).addTo(map);
+map.on("baselayerchange",()=>layerCtrl.collapse());   // スマホでは選んだら閉じる
+L.control.scale({imperial:false}).addTo(map);
+const gRoute=L.layerGroup().addTo(map), gCirc=L.layerGroup().addTo(map), gMk=L.layerGroup().addTo(map);
+
+map.on("click",e=>{
+  if(!$("clickAdd").checked) return;
+  addWp(e.latlng.lat,e.latlng.lng);
+});
+
+/* ---------- 状態 ---------- */
+function snapshot(){hist.push(JSON.stringify(wps));if(hist.length>100)hist.shift();save();}
+function undo(){if(!hist.length){toast("これ以上戻せません");return;}wps=JSON.parse(hist.pop());sel=-1;renderAll();save();toast("1つ戻しました");}
+function save(){try{localStorage.setItem("navhud-wp-draft",JSON.stringify(wps));}catch(e){}}
+function load(){try{const s=localStorage.getItem("navhud-wp-draft");if(s)wps=JSON.parse(s)||[];}catch(e){wps=[];}}
+const newWp=(lat,lon,o={})=>Object.assign({lat:r8(lat),lon:r8(lon),ele:"",name:"",target_time:"",deadline_time:"",enabled:true,radius:""},o);
+const r8=v=>Math.round(+v*1e8)/1e8;
+
+function addWp(lat,lon,o={}){
+  if(pending){if(!o.name)o={...o,name:pending.name};clearPending();}
+  snapshot();
+  const w=newWp(lat,lon,o);
+  let n;
+  if(sel>=0){wps.splice(sel+1,0,w);sel=sel+1;n=sel;}else{wps.push(w);n=wps.length-1;}
+  renderAll();save();
+  scrollToRow(n);
+  if(isMobile())toast(`WP${n+1} を追加しました`);
+  autoEle(w);
+}
+
+/* ---------- 距離 ---------- */
+function hav(a,b){const R=6371008.8,t=Math.PI/180;
+  const dLa=(b.lat-a.lat)*t,dLo=(b.lon-a.lon)*t;
+  const h=Math.sin(dLa/2)**2+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));}
+const fmtD=m=>m<1000?`${Math.round(m)} m`:`${(m/1000).toFixed(2)} km`;
+
+/* ---------- 描画 ---------- */
+function renderMap(){
+  gRoute.clearLayers();gCirc.clearLayers();gMk.clearLayers();
+  const defR=+$("defR").value||30;
+  const on=wps.filter(w=>w.enabled);
+  if(on.length>1) L.polyline(on.map(w=>[w.lat,w.lon]),{color:getCss("--accent"),weight:3}).addTo(gRoute);
+  wps.forEach((w,i)=>{
+    if(!w.enabled){
+      const prev=wps.slice(0,i).reverse().find(x=>x.enabled), next=wps.slice(i+1).find(x=>x.enabled);
+      const pts=[prev,w,next].filter(Boolean).map(x=>[x.lat,x.lon]);
+      if(pts.length>1) L.polyline(pts,{color:getCss("--off"),weight:2,dashArray:"6 6"}).addTo(gRoute);
+    }
+    const r=+w.radius||defR;
+    L.circle([w.lat,w.lon],{radius:r,color:w.enabled?getCss("--accent"):getCss("--off"),weight:1,fillOpacity:.08,interactive:false}).addTo(gCirc);
+    const m=L.marker([w.lat,w.lon],{draggable:true,
+      icon:L.divIcon({className:"wpm"+(w.enabled?"":" off")+(i===sel?" sel":""),html:String(i+1)})});
+    if(!isMobile()) m.bindTooltip(`${i+1}. ${esc(w.name||"(名前なし)")}`,{direction:"top",offset:[0,-12]});
+    m.on("click",ev=>{L.DomEvent.stopPropagation(ev);select(i===sel?-1:i,false);});
+    m.on("dragstart",()=>snapshot());
+    m.on("dragend",ev=>{const p=ev.target.getLatLng();w.lat=r8(p.lat);w.lon=r8(p.lng);w.ele="";renderAll();save();autoEle(w);});
+    m.addTo(gMk);
+  });
+}
+function getCss(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function renderList(){
+  const L_=$("list");
+  if(!wps.length){L_.innerHTML='<div class="empty">WPはまだありません。地図で追加するか、地図左上の欄で地名・住所や座標を入れて移動し、追加してください。CSV/GPXも読み込めます。</div>';updateStats();return;}
+  let cum=0,prev=null,html="";
+  wps.forEach((w,i)=>{
+    let d="";
+    if(w.enabled){if(prev){const s=hav(prev,w);cum+=s;d=`区間 ${fmtD(s)}・累計 ${fmtD(cum)}`;}else d="出発点";prev=w;}
+    else d="無効（案内しない）";
+    html+=`<div class="wp${w.enabled?"":" off"}${i===sel?" sel":""}" data-i="${i}">
+      <div class="pr1">
+        <b data-act="sel" role="button" tabindex="0" title="選択（選択中はこの後ろに追加）">WP${i+1}</b>
+        <input class="name" data-f="name" value="${esc(w.name)}" placeholder="名前" aria-label="WP${i+1} 名前">
+        <label class="pen"><input type="checkbox" data-f="enabled" ${w.enabled?"checked":""}>有効</label>
+        <button data-act="del" class="danger">削除</button>
+      </div>
+      <div class="pr2">
+        <label>標高 m<span class="eleBox"><input data-f="ele" value="${esc(w.ele)}" inputmode="decimal"><button type="button" class="eleBtn" data-act="ele" title="標高を取り直す" aria-label="標高を取り直す">↻</button></span></label>
+        <label>半径 m<input data-f="radius" value="${esc(w.radius)}" inputmode="numeric" placeholder="既定"></label>
+        <label>目標時刻<input data-f="target_time" value="${esc(w.target_time)}" placeholder="1100→11:00" inputmode="numeric"></label>
+        <label>締切時刻<input data-f="deadline_time" value="${esc(w.deadline_time)}" placeholder="1100→11:00" inputmode="numeric"></label>
+      </div>
+      <div class="pr3">
+        <span class="dist">${d}</span>
+        <span class="coord" data-act="go" title="地図で表示">地図</span>
+        <button data-act="up" title="上へ" aria-label="上へ">▲</button><button data-act="dn" title="下へ" aria-label="下へ">▼</button>
+      </div>
+    </div>`;
+  });
+  L_.innerHTML=html;
+  L_.querySelectorAll("input[data-f]").forEach(validate);
+  updateStats();
+}
+function updateStats(){
+  const on=wps.filter(w=>w.enabled);let t=0;for(let i=1;i<on.length;i++)t+=hav(on[i-1],on[i]);
+  $("hint").innerHTML=(sel>=0?`<b>WP${sel+1} を選択中</b>：この後ろに追加されます（WP番号を押すと解除）　`:`<span class="tip">十字の位置に追加・マーカーはドラッグで移動　</span>`)
+    +`<span class="stats">WP ${wps.length}（有効 ${on.length}）／ 総距離 ${fmtD(t)}</span>`;
+  $("tabN").textContent=wps.length?`(${wps.length})`:"";
+  renderPanel();
+}
+// スマホ地図下部: 選択中WPの編集パネル
+function renderPanel(){
+  const p=$("msel"),w=wps[sel];
+  $("btnAddC").textContent=pending&&pending.name?`＋「${pending.name}」を追加`:w?`＋ WP${sel+1} の後ろに追加`:"＋ 十字の位置に追加";
+  if(sel<0||!w){p.hidden=true;return;}
+  p.hidden=false;p.classList.toggle("off",!w.enabled);
+  $("pNo").textContent=`WP${sel+1}`;
+  p.querySelectorAll("input[data-f]").forEach(inp=>{
+    if(inp===document.activeElement)return;   // 入力中の欄は書き換えない
+    if(inp.type==="checkbox")inp.checked=w.enabled;
+    else{inp.value=w[inp.dataset.f]??"";validate(inp);}
+  });
+}
+function renderAll(){renderMap();renderList();}
+
+function validate(inp){
+  const f=inp.dataset.f,v=inp.value.trim();let ok=true;
+  if(f==="target_time"||f==="deadline_time") ok=!v||TIME_RE.test(v);
+  if(f==="ele") ok=!v||isFinite(+v);
+  if(f==="radius") ok=!v||(isFinite(+v)&&+v>0);
+  inp.classList.toggle("bad",!ok);
+}
+
+/* リスト操作 */
+$("list").addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;
+  const i=+b.closest(".wp").dataset.i,a=b.dataset.act;
+  if(a==="ele"){refetchEle(i,b);return;}
+  if(a==="sel") select(i===sel?-1:i,true);
+  else if(a==="go"){
+    sel=i;
+    if(isMobile())setView("map");
+    renderAll();
+    map.setView([wps[i].lat,wps[i].lon],Math.max(map.getZoom(),15));
+  }
+  else if(a==="up"&&i>0){snapshot();[wps[i-1],wps[i]]=[wps[i],wps[i-1]];if(sel===i)sel--;else if(sel===i-1)sel++;renderAll();scrollToRow(i-1);}
+  else if(a==="dn"&&i<wps.length-1){snapshot();[wps[i+1],wps[i]]=[wps[i],wps[i+1]];if(sel===i)sel++;else if(sel===i+1)sel--;renderAll();scrollToRow(i+1);}
+  else if(a==="del"){snapshot();wps.splice(i,1);if(sel===i)sel=-1;else if(sel>i)sel--;renderAll();toast(`WP${i+1} を削除しました（戻せます）`);}
+});
+$("list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.dataset.act==="sel")e.target.click();});
+$("list").addEventListener("focusin",e=>{if(e.target.dataset.f)e.target._before=JSON.stringify(wps);});
+$("list").addEventListener("change",e=>{
+  const inp=e.target,f=inp.dataset.f;if(!f)return;
+  const i=+inp.closest(".wp").dataset.i;
+  if(inp._before){hist.push(inp._before);inp._before=null;}
+  applyField(i,inp);
+  if(f==="enabled"||f==="radius"){renderAll();}else{renderMap();updateStats();}
+});
+function applyField(i,inp){
+  const f=inp.dataset.f;
+  if(f==="target_time"||f==="deadline_time")inp.value=normTime(inp.value);
+  wps[i][f]=f==="enabled"?inp.checked:inp.value.trim();
+  validate(inp);save();
+}
+$("msel").addEventListener("focusin",e=>{if(e.target.dataset.f)e.target._before=JSON.stringify(wps);});
+$("msel").addEventListener("click",e=>{const b=e.target.closest('[data-act="ele"]');if(b&&sel>=0)refetchEle(sel,b);});
+// 標高の再取得（入力済みでも上書きする）
+async function refetchEle(i,btn){
+  const w=wps[i];if(!w)return;
+  btn.disabled=true;
+  const v=await getEle(w.lat,w.lon);
+  btn.disabled=false;
+  if(v===null){toast("標高を取得できませんでした（海上・国外・通信エラーなど）");return;}
+  if(!wps.includes(w))return;
+  snapshot();w.ele=String(v);save();renderAll();
+  toast(`WP${wps.indexOf(w)+1} の標高: ${v} m`);
+}
+$("msel").addEventListener("change",e=>{
+  const inp=e.target;if(!inp.dataset.f||sel<0)return;
+  if(inp._before){hist.push(inp._before);inp._before=null;}
+  applyField(sel,inp);renderAll();
+});
+$("msel").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input"))e.target.blur();});
+$("pDel").addEventListener("click",()=>{
+  if(sel<0)return;
+  snapshot();const n=sel+1;wps.splice(sel,1);sel=-1;renderAll();toast(`WP${n} を削除しました（戻せます）`);
+});
+function select(i,pan){
+  sel=i;renderAll();
+  if(i>=0){if(pan&&!isMobile())map.panTo([wps[i].lat,wps[i].lon]);scrollToRow(i);}
+}
+function scrollToRow(i){const el=$("list").querySelector(`.wp[data-i="${i}"]`);if(el)el.scrollIntoView({block:"nearest"});}
+
+/* ---------- スマホ: 表示切替と地図上の操作 ---------- */
+function setView(v){
+  document.body.classList.toggle("v-map",v==="map");
+  document.body.classList.toggle("v-list",v==="list");
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===v)));
+  if(v==="map")setTimeout(()=>map.invalidateSize(),0);
+  else if(sel>=0)setTimeout(()=>scrollToRow(sel),0);
+}
+document.querySelectorAll("#tabs button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.v)));
+$("btnAddC").addEventListener("click",()=>{const c=map.getCenter();addWp(c.lat,c.lng);});
+$("btnDesel").addEventListener("click",()=>select(-1,false));
+$("btnFitM").addEventListener("click",fit);
+$("btnZin").addEventListener("click",()=>map.zoomIn());
+$("btnZout").addEventListener("click",()=>map.zoomOut());
+$("btnUndoM").addEventListener("click",undo);
+function syncTap(){const on=$("clickAdd").checked;$("btnTap").classList.toggle("on",on);$("btnTap").innerHTML=on?"タップ<br>追加<br>ON":"タップ<br>追加<br>OFF";}
+$("btnTap").addEventListener("click",()=>{$("clickAdd").checked=!$("clickAdd").checked;syncTap();});
+$("clickAdd").addEventListener("change",syncTap);
+
+let me=null;
+$("btnLoc").addEventListener("click",()=>{
+  if(!navigator.geolocation){toast("このブラウザでは現在地を取得できません");return;}
+  toast("現在地を取得中…");
+  navigator.geolocation.getCurrentPosition(p=>{
+    const ll=[p.coords.latitude,p.coords.longitude];
+    if(!me)me=L.circleMarker(ll,{radius:8,color:"#fff",weight:2,fillColor:"#1a73e8",fillOpacity:1,interactive:false}).addTo(map);
+    else me.setLatLng(ll);
+    map.setView(ll,Math.max(map.getZoom(),16));
+    toast(`現在地（精度 約${Math.round(p.coords.accuracy)} m）`);
+  },err=>toast("現在地を取得できません: "+(err.code===1?"位置情報が許可されていません":err.message)),
+  {enableHighAccuracy:true,timeout:15000,maximumAge:10000});
+});
+
+/* ---------- CSV ---------- */
+function parseCSV(text){
+  const rows=[];let row=[],f="",q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}
+    else if(c==='"')q=true;
+    else if(c===","){row.push(f);f="";}
+    else if(c==="\n"||c==="\r"){if(c==="\r"&&text[i+1]==="\n")i++;row.push(f);rows.push(row);row=[];f="";}
+    else f+=c;
+  }
+  if(f!==""||row.length){row.push(f);rows.push(row);}
+  return rows.filter(r=>r.some(x=>x.trim()!==""));
+}
+function boolOf(v){v=String(v).trim().toLowerCase();return !(v==="false"||v==="0"||v==="no"||v==="off");}
+function importCSV(text){
+  const rows=parseCSV(text.replace(/^﻿/,""));
+  if(!rows.length)throw new Error("中身が空です");
+  const head=rows[0].map(h=>h.trim().toLowerCase());
+  const ix=Object.fromEntries(COLS.map(c=>[c,head.indexOf(c)]));
+  if(ix.lat<0||ix.lon<0)throw new Error("見出しに lat と lon が必要です");
+  const out=[];let skip=0;
+  rows.slice(1).forEach(r=>{
+    const g=c=>ix[c]>=0?(r[ix[c]]||"").trim():"";
+    const lat=parseFloat(g("lat")),lon=parseFloat(g("lon"));
+    if(!isFinite(lat)||!isFinite(lon)){skip++;return;}
+    out.push(newWp(lat,lon,{ele:g("ele"),name:g("name"),target_time:normTime(g("target_time")),deadline_time:normTime(g("deadline_time")),
+      enabled:g("enabled")===""?true:boolOf(g("enabled")),radius:g("radius")}));
+  });
+  return {out,skip};
+}
+function importGPX(text){
+  const doc=new DOMParser().parseFromString(text,"application/xml");
+  if(doc.querySelector("parsererror"))throw new Error("GPXとして読めませんでした");
+  const out=[];
+  doc.querySelectorAll("wpt").forEach(p=>{
+    const lat=parseFloat(p.getAttribute("lat")),lon=parseFloat(p.getAttribute("lon"));
+    if(!isFinite(lat)||!isFinite(lon))return;
+    const t=c=>{const n=p.getElementsByTagName(c)[0];return n?n.textContent.trim():"";};
+    let tt="";const tm=t("time");
+    if(tm){const d=new Date(tm);if(!isNaN(d))tt=`${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;}
+    out.push(newWp(lat,lon,{name:t("name"),ele:t("ele"),target_time:tt}));
+  });
+  return {out,skip:0};
+}
+function decode(buf){
+  try{return new TextDecoder("utf-8",{fatal:true}).decode(buf);}
+  catch(e){return new TextDecoder("shift_jis").decode(buf);}
+}
+$("fileIn").addEventListener("change",async e=>{
+  const file=e.target.files[0];e.target.value="";if(!file)return;
+  try{
+    const text=decode(await file.arrayBuffer());
+    const isGpx=/\.gpx$/i.test(file.name)||/<gpx[\s>]/i.test(text.slice(0,2000));
+    const {out,skip}=isGpx?importGPX(text):importCSV(text);
+    if(!out.length)throw new Error("WPが見つかりませんでした");
+    snapshot();wps=out;sel=-1;renderAll();save();
+    if(isMobile())setView("map");
+    fit();
+    if(!isGpx)$("fname").value=file.name.replace(/\.[^.]+$/,"")+".csv";
+    toast(`${file.name} から ${out.length} 件読み込みました`+(skip?`（座標が読めない ${skip} 行を除外）`:""));
+  }catch(err){toast("読み込めません: "+err.message);}
+});
+
+function toCSV(){
+  const q=v=>{v=v==null?"":String(v);return /[",\r\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v;};
+  const lines=[COLS.join(",")];
+  wps.forEach(w=>lines.push([w.lat.toFixed(8),w.lon.toFixed(8),w.ele,w.name,w.target_time,w.deadline_time,w.enabled?"":"false",w.radius].map(q).join(",")));
+  return lines.join("\r\n")+"\r\n";
+}
+$("btnExport").addEventListener("click",()=>{
+  if(!wps.length){toast("WPがありません");return;}
+  const bad=document.querySelectorAll("#list input.bad").length;
+  const blob=new Blob([($("enc").value==="bom"?"﻿":"")+toCSV()],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=($("fname").value.trim()||"waypoints.csv").replace(/(\.csv)?$/i,".csv");
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  toast(`${wps.length} 件を書き出しました`+(bad?`（入力に誤りが ${bad} か所あります）`:""));
+});
+
+/* ---------- 座標の貼り付け ---------- */
+function parseCoords(text){
+  const res=[];
+  text.split(/\r?\n/).forEach(line=>{
+    try{line=decodeURIComponent(line);}catch(e){}
+    // Google マップの長いURL: !3d緯度!4d経度（ピンの位置）を優先、次に @緯度,経度（画面中心）
+    const m=line.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||line.match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+    if(m){const la=+m[1],lo=+m[2];if(Math.abs(la)<=90&&Math.abs(lo)<=180)res.push([la,lo]);}
+  });
+  return res;
+}
+// 入力欄: 座標でも地名・住所でも、まず候補を出して地図を移動するだけ（WPの追加はユーザーが判断）
+//   候補が1件ならすぐ移動、複数なら一覧から選ぶ
+function submitInput(){
+  const t=$("q").value.trim();if(!t)return;
+  $("q").blur();
+  const cs=parseCoords(t);
+  if(cs.length){showCands(t,cs.map(([la,lo])=>({name:"",label:`${la}, ${lo}`,detail:"座標",lat:la,lon:lo})));return;}
+  if(/^https?:\/\//i.test(t)){
+    toast(/goo\.gl|google\.[a-z.]+\/maps/.test(t)?"このURLには座標が含まれていません。地名・住所で検索してください":"URLから座標を読み取れませんでした",6000);
+    return;
+  }
+  search(t);
+}
+$("sform").addEventListener("submit",e=>{e.preventDefault();submitInput();});
+$("q").addEventListener("input",()=>{$("qClear").hidden=!$("q").value&&!pending;});
+$("qClear").addEventListener("click",()=>{$("q").value="";closeSearch();clearPending();$("qClear").hidden=true;});
+
+/* ---------- 地名・住所検索（1段目: 国土地理院 → 2段目: OSM Nominatim） ----------
+   OSMは無料の公開サーバーなので負荷を抑える:
+   ・ユーザーが「OSMでも探す」を押したとき（または地理院が0件のとき）だけ検索
+   ・前回のOSMリクエストから2秒未満なら残り時間だけ待つ／同時に1件だけ（タブ・再読み込みをまたいで有効）
+   ・3時間あたり30回まで（それ以上は地理院のみ）。1文字の語句は送らない
+   ・同じ語句の結果（0件も含む）は30日間ブラウザに保存して再利用（設定で消去可）
+   ・429/403などで断られたら3時間OSMを止める（再読み込みでも解除しない）
+   ※制限はこのブラウザ内だけで数える */
+let pending=null, pendingMk=null;
+let cur=null;               // 表示中の検索 {q, gsi:[], osm:[]|null, osmState:"idle|busy|done|err"}
+let osmBusy=false;
+const OSM_CACHE_KEY="navhud-osm-cache", OSM_TTL=30*24*3600*1000;
+const OSM_STATE_KEY="navhud-osm-state";
+const OSM_GAP=2000, OSM_WIN=3*3600*1000, OSM_MAX=30, OSM_STOP=3*3600*1000;
+// 送信記録 {log:[時刻…], stop:停止解除時刻}。保存できない環境ではメモリ上だけで数える
+let osmMem={log:[],stop:0};
+function osmState(){
+  let st;try{st=JSON.parse(localStorage.getItem(OSM_STATE_KEY))||{};}catch(e){st=osmMem;}
+  const now=Date.now();
+  st.log=(st.log||[]).filter(t=>now-t<OSM_WIN);st.stop=st.stop||0;
+  return st;
+}
+function osmSave(st){osmMem=st;try{localStorage.setItem(OSM_STATE_KEY,JSON.stringify(st));}catch(e){}}
+const fmtHM=t=>{const d=new Date(t);return `${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;};
+const normQ=q=>q.normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();
+function cacheAll(){try{return JSON.parse(localStorage.getItem(OSM_CACHE_KEY))||{};}catch(e){return {};}}
+function cacheGet(q){const c=cacheAll()[normQ(q)];return c&&Date.now()-c.t<OSM_TTL?c.r:null;}
+function cachePut(q,r){
+  try{
+    const c=cacheAll(),now=Date.now();
+    for(const k in c)if(now-c[k].t>=OSM_TTL)delete c[k];   // 期限切れを掃除
+    c[normQ(q)]={t:now,r};
+    localStorage.setItem(OSM_CACHE_KEY,JSON.stringify(c));
+  }catch(e){}
+  updateCacheInfo();
+}
+function updateCacheInfo(){
+  const n=Object.keys(cacheAll()).length,st=osmState();
+  $("cacheInfo").textContent=`OSM検索: 保存 ${n} 件／直近3時間 ${st.log.length}/${OSM_MAX} 回`;
+}
+$("btnCacheClr").addEventListener("click",()=>{try{localStorage.removeItem(OSM_CACHE_KEY);}catch(e){}updateCacheInfo();toast("OSM検索の保存結果を消去しました");});
+
+async function search(q){
+  cur={q,gsi:[],osm:null,osmState:"idle",gsiErr:false};
+  const my=cur;
+  renderCands("検索中…");
+  try{
+    const j=await (await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(q)}`)).json();
+    my.gsi=j.map(r=>({name:r.properties.title,label:r.properties.title,kind:"地理院",lat:r.geometry.coordinates[1],lon:r.geometry.coordinates[0]}))
+      .filter(r=>isFinite(r.lat)&&isFinite(r.lon));
+  }catch(e){my.gsiErr=true;}
+  if(cur!==my)return;
+  renderCands();
+  if(!my.gsi.length)searchOsm();       // 地理院が0件なら自動でOSMへ
+}
+async function searchOsm(){
+  const my=cur;if(!my||my.osmState==="busy"||my.osmState==="done")return;
+  const cached=cacheGet(my.q);
+  if(cached){my.osm=cached;my.osmState="done";renderCands();return;}
+  if(normQ(my.q).length<2){my.osmState="err";my.osmMsg="OSM検索は2文字以上で行ってください";renderCands();return;}
+  let st=osmState();
+  if(Date.now()<st.stop){my.osmState="err";my.osmMsg=`OSM検索は ${fmtHM(st.stop)} まで停止中です（地理院の検索は使えます）`;renderCands();return;}
+  if(st.log.length>=OSM_MAX){my.osmState="err";my.osmMsg=`OSM検索は3時間に${OSM_MAX}回までです。${fmtHM(st.log[0]+OSM_WIN)} 以降に使えます（地理院の検索は使えます）`;renderCands();return;}
+  if(osmBusy)return;
+  osmBusy=true;my.osmState="busy";renderCands();
+  try{
+    const last=st.log.length?st.log[st.log.length-1]:0;
+    const wait=OSM_GAP-(Date.now()-last);
+    if(wait>0)await new Promise(r=>setTimeout(r,wait));
+    st=osmState();st.log.push(Date.now());osmSave(st);updateCacheInfo();
+    const bb=map.getBounds();
+    const u="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&countrycodes=jp&accept-language=ja"
+      +`&viewbox=${bb.getWest().toFixed(3)},${bb.getNorth().toFixed(3)},${bb.getEast().toFixed(3)},${bb.getSouth().toFixed(3)}`
+      +`&q=${encodeURIComponent(my.q)}`;
+    const r=await fetch(u);
+    if(r.status===429||r.status===403){const s2=osmState();s2.stop=Date.now()+OSM_STOP;osmSave(s2);throw new Error("stop");}
+    if(!r.ok)throw new Error("http");
+    const j=await r.json();
+    my.osm=j.map(x=>{
+      const parts=String(x.display_name||"").split(",").map(t=>t.trim()).filter(t=>t&&t!=="日本"&&!/^\d{3}-?\d{4}$/.test(t));
+      const name=x.name||parts[0]||my.q;
+      return {name,label:name,detail:parts.slice(x.name?1:0).reverse().join(" "),kind:"OSM",lat:+x.lat,lon:+x.lon};
+    }).filter(x=>isFinite(x.lat)&&isFinite(x.lon));
+    my.osmState="done";
+    cachePut(my.q,my.osm);
+  }catch(e){
+    my.osmState="err";
+    my.osmMsg=e.message==="stop"?"OSM検索を断られたため、3時間停止します（地理院の検索は使えます）":"OSM検索に失敗しました（通信エラー）";
+  }finally{osmBusy=false;}
+  if(cur===my)renderCands();
+}
+// 印（検索先）。古い履歴の「住所」「施設」も読み替える
+function kindOf(r){return r.kind==="施設"?"OSM":r.kind==="住所"?"地理院":r.kind||"";}
+function kindTag(r){
+  const k=kindOf(r);if(!k)return "";
+  return `<span class="kind k-${k==="OSM"?"osm":k==="地理院"?"gsi":"xy"}">${esc(k)}</span>`;
+}
+function renderCands(status){
+  const box=$("sres"),c=cur;box.hidden=false;
+  const qq=esc(c.q.length>24?c.q.slice(0,24)+"…":c.q);
+  if(status){box.innerHTML=`<div class="sh"><span>「${qq}」を${status}</span><button id="sClose">閉じる</button></div>`;return;}
+  const res=[...(c.osm||[]),...c.gsi];
+  let osmBtn="";
+  if(c.osmState==="idle")osmBtn=`<button id="sOsm">OSMでも探す</button>`;
+  else if(c.osmState==="busy")osmBtn=`<button disabled>OSMで検索中…</button>`;
+  else if(c.osmState==="err"&&c.osmMsg.startsWith("OSM検索に失敗"))osmBtn=`<button id="sOsmRetry">OSMで再検索</button>`;
+  let h=`<div class="sh"><span>「${qq}」 ${res.length} 件</span><button id="sClose">閉じる</button></div>`;
+  if(osmBtn)h+=`<div class="sosm">${osmBtn}</div>`;
+  if(c.osmState==="err")h+=`<div class="src warn">${esc(c.osmMsg)}</div>`;
+  if(c.gsiErr)h+=`<div class="src warn">住所検索（国土地理院）に失敗しました（通信エラー）</div>`;
+  if(!res.length&&c.osmState==="done")h+=`<div class="src">見つかりませんでした。別の書き方（正式名称、住所など）で試してください。</div>`;
+  res.slice(0,40).forEach((r,i)=>{
+    h+=`<button class="si" data-i="${i}"><b>${kindTag(r)}${esc(r.label)}</b>${r.detail?`<small>${esc(r.detail)}</small>`:""}</button>`;
+  });
+  h+=`<div class="src cred">検索: 国土地理院${c.osm?"／© OpenStreetMap contributors（Nominatim）":""}</div>`;
+  box.innerHTML=h;box._res=res;
+}
+// 座標入力の候補（地理院・OSMは使わない）。1件ならそのまま移動
+function showCands(q,res){
+  if(res.length===1){closeSearch();setPending(res[0]);return;}
+  cur={q,gsi:res.map(r=>({...r,kind:"座標"})),osm:null,osmState:"none"};
+  renderCands();
+}
+$("sres").addEventListener("click",e=>{
+  if(e.target.id==="sClose"){closeSearch();return;}
+  if(e.target.id==="hClr"){histClear();return;}
+  if(e.target.id==="sOsm"){searchOsm();return;}
+  if(e.target.id==="sOsmRetry"){cur.osmState="idle";searchOsm();return;}
+  const b=e.target.closest(".si");if(!b)return;
+  setPending($("sres")._res[+b.dataset.i]);
+});
+function closeSearch(){$("sres").hidden=true;$("sres").innerHTML="";cur=null;}
+/* ---------- 検索履歴（選んだ候補を最大30件。選ぶと検索せずに即移動） ---------- */
+const HIST_KEY="navhud-search-hist", HIST_MAX=30;
+function histAll(){try{return JSON.parse(localStorage.getItem(HIST_KEY))||[];}catch(e){return [];}}
+function histPush(r){
+  try{
+    const h=histAll().filter(x=>!(x.label===r.label&&Math.abs(x.lat-r.lat)<1e-6&&Math.abs(x.lon-r.lon)<1e-6));
+    h.unshift({name:r.name||"",label:r.label,kind:r.kind||"",detail:r.detail||"",lat:r.lat,lon:r.lon});
+    localStorage.setItem(HIST_KEY,JSON.stringify(h.slice(0,HIST_MAX)));
+  }catch(e){}
+}
+function histClear(){try{localStorage.removeItem(HIST_KEY);}catch(e){}showHist();toast("検索履歴を消去しました");}
+function showHist(){
+  const h=histAll(),box=$("sres");box.hidden=false;
+  cur={q:"",gsi:h,osm:null,osmState:"none",hist:true};
+  let html=`<div class="sh"><span>検索履歴 ${h.length} 件</span>${h.length?`<button id="hClr">履歴を消去</button>`:""}<button id="sClose">閉じる</button></div>`;
+  if(!h.length)html+=`<div class="src">履歴はまだありません。検索して候補を選ぶとここに残ります。</div>`;
+  h.forEach((r,i)=>{html+=`<button class="si" data-i="${i}"><b>${kindTag(r)}${esc(r.label)}</b>${r.detail?`<small>${esc(r.detail)}</small>`:""}</button>`;});
+  // 出典: 履歴に含まれる検索先を表示（検索結果の一覧と同じ形）
+  const src=[];
+  if(h.some(r=>kindOf(r)==="地理院"))src.push("国土地理院");
+  if(h.some(r=>kindOf(r)==="OSM"))src.push("© OpenStreetMap contributors（Nominatim）");
+  if(src.length)html+=`<div class="src cred">検索: ${src.join("／")}</div>`;
+  box.innerHTML=html;box._res=h;
+}
+$("qHist").addEventListener("click",()=>{if(cur&&cur.hist)closeSearch();else showHist();});
+
+// 候補の位置へ地図を移動し、目印を出す。追加ボタンを押すと十字の位置にWPができる（名前は候補から）
+function setPending(r){
+  pending={name:r.name,label:r.label,lat:r.lat,lon:r.lon};
+  histPush(r);
+  closeSearch();
+  if(isMobile())setView("map");
+  map.setView([r.lat,r.lon],14);
+  if(pendingMk)pendingMk.remove();
+  pendingMk=L.circleMarker([r.lat,r.lon],{radius:9,color:getCss("--hl"),weight:3,fill:false,interactive:false}).addTo(map);
+  document.body.classList.add("pending");
+  $("qClear").hidden=false;
+  toast(`${r.name?`「${r.name}」`:r.label} へ移動しました。十字の位置に追加できます`);
+  renderPanel();
+}
+function clearPending(){
+  pending=null;if(pendingMk){pendingMk.remove();pendingMk=null;}
+  document.body.classList.remove("pending");
+  if(!$("q").value)$("qClear").hidden=true;
+  setTimeout(renderPanel,0);
+}
+document.addEventListener("paste",e=>{
+  const t=e.target;if(t.matches&&t.matches("input,textarea"))return;
+  const s=(e.clipboardData||window.clipboardData).getData("text");
+  if(s&&parseCoords(s).length){e.preventDefault();$("q").value=s.trim();submitInput();}
+});
+
+/* ---------- 標高（国土地理院 標高API） ---------- */
+// 1地点の標高[m]を返す。データなし（海上・国外）や通信エラーは null
+async function getEle(lat,lon){
+  try{
+    const r=await fetch(`https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lon}&lat=${lat}&outtype=JSON`);
+    const j=await r.json();
+    return typeof j.elevation==="number"?Math.round(j.elevation*10)/10:null;
+  }catch(e){return null;}
+}
+// 自動取得: リクエストは1件ずつ順番に、間隔を空けて送る
+let eleQ=Promise.resolve();
+function autoEle(w){
+  if(!$("autoEle").checked||w.ele!=="")return;
+  const lat=w.lat,lon=w.lon;
+  eleQ=eleQ.then(async()=>{
+    if(!wps.includes(w)||w.ele!==""||w.lat!==lat||w.lon!==lon)return;  // 削除・移動・手入力済みなら捨てる
+    const v=await getEle(lat,lon);
+    if(v===null||!wps.includes(w)||w.ele!==""||w.lat!==lat||w.lon!==lon)return;
+    w.ele=String(v);save();
+    const inp=$("list").querySelector(`.wp[data-i="${wps.indexOf(w)}"] input[data-f="ele"]`);
+    if(inp&&document.activeElement!==inp){inp.value=w.ele;validate(inp);}
+    if(wps.indexOf(w)===sel)renderPanel();
+    await new Promise(r=>setTimeout(r,120));
+  });
+}
+$("btnEle").addEventListener("click",async()=>{
+  const targets=wps.filter(w=>w.ele==="");
+  if(!targets.length){toast("標高が空のWPはありません");return;}
+  snapshot();let ok=0,ng=0;
+  for(const w of targets){
+    const v=await getEle(w.lat,w.lon);
+    if(v!==null&&w.ele===""){w.ele=String(v);ok++;}else ng++;
+    toast(`標高を取得中… ${ok+ng}/${targets.length}`);
+    await new Promise(r=>setTimeout(r,150));
+  }
+  renderList();save();
+  toast(`標高を ${ok} 件入れました`+(ng?`（${ng} 件は取得できず。海上・国外・通信エラーなど）`:""));
+});
+
+/* ---------- その他 ---------- */
+function fit(){if(wps.length)map.fitBounds(L.latLngBounds(wps.map(w=>[w.lat,w.lon])),{padding:[40,40],maxZoom:16});}
+$("btnFit").addEventListener("click",()=>{if(isMobile())setView("map");fit();});
+$("btnUndo").addEventListener("click",undo);
+$("defR").addEventListener("change",renderMap);
+let clearArm=0;
+$("btnClear").addEventListener("click",e=>{
+  if(!wps.length)return;
+  if(Date.now()-clearArm<3000){snapshot();wps=[];sel=-1;renderAll();save();e.target.textContent="全削除";clearArm=0;toast("全削除しました（元に戻せます）");}
+  else{clearArm=Date.now();e.target.textContent="もう一度押すと削除";setTimeout(()=>{e.target.textContent="全削除";},3000);}
+});
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!e.target.matches("input,textarea")){e.preventDefault();undo();}
+  if(e.key==="Escape"&&sel>=0)select(-1,false);
+});
+let tt;function toast(m,ms=3200){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),ms);}
+
+// スマホでは誤タップ防止のため「地図タップで追加」を初期OFF（十字ボタンで追加）
+if(isMobile())$("tools").open=false;
+syncTap();
+mq.addEventListener("change",()=>{setView("map");renderMap();$("tools").open=!isMobile();});
+load();renderAll();updateCacheInfo();
+if(wps.length)fit();
+</script>
+</body>
+</html>
