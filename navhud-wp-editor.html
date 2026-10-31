@@ -10,12 +10,13 @@
 :root{
   --bg:#f3f5f4; --panel:#ffffff; --fg:#17201c; --muted:#5d6b64; --line:#d5ddd9;
   --accent:#0f7a52; --accent-fg:#ffffff; --warn:#b4471f; --off:#8a948f; --hl:#ffb000;
+  --src-gsi:#1f5fa8; --src-osm:#7b3fa8;
   --mono:ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;
   --sans:system-ui,-apple-system,"Segoe UI","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0d1210; --panel:#141b18; --fg:#dfe8e3; --muted:#8fa098; --line:#28332e;
-  --accent:#35c48a; --accent-fg:#06110c; --warn:#f08a5d; --off:#6e7a74; color-scheme:dark;
+  --accent:#35c48a; --accent-fg:#06110c; --warn:#f08a5d; --off:#6e7a74; --src-gsi:#6ea8ff; --src-osm:#c08af0; color-scheme:dark;
 }}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -80,8 +81,10 @@ aside{min-height:0;min-width:0;display:flex;flex-direction:column;border-left:1p
 #sres .sosm{padding:6px 12px;border-bottom:1px solid var(--line);position:sticky;top:37px;background:var(--panel)}
 #sres .sosm button{width:100%;border-color:var(--accent);color:var(--accent);font-weight:600}
 .kind{display:inline-block;font-size:10px;font-weight:600;padding:0 5px;margin-right:6px;border-radius:3px;vertical-align:2px;border:1px solid}
-.k-f{color:var(--accent);border-color:var(--accent)}
-.k-a{color:var(--muted);border-color:var(--line)}
+/* 検索先の印: 地理院=青、OSM=紫（操作ボタンの緑・警告の橙・選択の黄と区別） */
+.k-osm{color:var(--src-osm);border-color:var(--src-osm)}
+.k-gsi{color:var(--src-gsi);border-color:var(--src-gsi)}
+.k-xy{color:var(--muted);border-color:var(--line)}
 /* 検索結果を選んだあと、地図上に出す案内 */
 body.pending #cross{display:block}
 #toast{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:7px 14px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:2000;max-width:90vw}
@@ -92,8 +95,12 @@ body.pending #cross{display:block}
 .wpm.off{background:var(--off)}
 .wpm.sel{outline:3px solid var(--hl)}
 
-/* スマホ用の部品（PCでは非表示） */
-.mob,#tabs{display:none}
+/* 地図上の操作部品（十字・右列・追加ボタン・編集パネル）はPC・スマホ共通 */
+.mob{display:flex}
+#tabs{display:none}
+#cross{display:block}
+#msel[hidden]{display:none}
+.leaflet-control-zoom{display:none}
 #cross{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;z-index:500;pointer-events:none}
 #cross::before,#cross::after{content:"";position:absolute;background:var(--warn);box-shadow:0 0 0 1px #fff}
 #cross::before{left:16px;top:0;width:2px;height:34px}
@@ -136,9 +143,7 @@ body.pending #cross{display:block}
   body.v-map aside{display:none}
   body.v-list #mapWrap{display:none}
   aside{border-left:0}
-  .mob,#tabs{display:flex}
-  #cross{display:block}
-  #msel[hidden]{display:none}
+  #tabs{display:flex}
   button,.btn{padding:8px 12px;font-size:14px}
   input,select,textarea{font-size:16px;padding:6px 8px}
   header h1{font-size:14px;margin-right:0}
@@ -152,11 +157,11 @@ body.pending #cross{display:block}
   .pr3 button{padding:6px 14px;font-size:14px}
   #hint .tip{display:none}
   .leaflet-control-attribution{font-size:9.5px}
-  .leaflet-control-zoom{display:none}
   #toast{bottom:auto;top:62%}
 }
 /* PC: 検索で移動したときだけ地図右下に追加ボタンを出す */
-@media (min-width:821px){body.pending #mbar{display:flex}#msel{display:none!important}#mbar{left:auto;right:20px;width:320px}}
+/* PC: 地図が広いので追加ボタンと編集パネルの幅を抑える（右列と重ならない） */
+@media (min-width:821px){#mbar{right:auto;width:min(560px,calc(100% - 100px))}}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 </style>
 </head>
@@ -214,7 +219,7 @@ body.pending #cross{display:block}
       <button id="btnUndo" title="Ctrl+Z">元に戻す</button>
       <button id="btnEle" title="ele が空のWPに国土地理院の標高をまとめて入れる">空欄の標高を一括取得</button>
       <button id="btnFit">全体表示</button>
-      <label><input id="clickAdd" type="checkbox" checked> 地図タップで追加</label>
+      <label><input id="clickAdd" type="checkbox"> 地図タップで追加</label>
       <label title="WPを追加・移動したとき、国土地理院の標高を自動で入れる"><input id="autoEle" type="checkbox" checked> 標高を自動取得</label>
       <label>既定半径 <input id="defR" type="number" value="30" min="1" style="width:60px"> m</label>
       <span class="sp"></span>
@@ -229,7 +234,7 @@ body.pending #cross{display:block}
     </div>
     <div class="bar">
       <span id="cacheInfo" class="stats"></span>
-      <button id="btnCacheClr" title="OSMの施設検索で保存した結果（30日間保存）を消去">保存を消去</button>
+      <button id="btnCacheClr" title="OSMのOSM検索で保存した結果（30日間保存）を消去">保存を消去</button>
     </div>
     </details>
     <div id="hint"></div>
@@ -370,7 +375,7 @@ function renderList(){
 }
 function updateStats(){
   const on=wps.filter(w=>w.enabled);let t=0;for(let i=1;i<on.length;i++)t+=hav(on[i-1],on[i]);
-  $("hint").innerHTML=(sel>=0?`<b>WP${sel+1} を選択中</b>：この後ろに追加されます（WP番号を押すと解除）　`:`<span class="tip">地図クリックで末尾に追加・マーカーはドラッグで移動　</span>`)
+  $("hint").innerHTML=(sel>=0?`<b>WP${sel+1} を選択中</b>：この後ろに追加されます（WP番号を押すと解除）　`:`<span class="tip">十字の位置に追加・マーカーはドラッグで移動　</span>`)
     +`<span class="stats">WP ${wps.length}（有効 ${on.length}）／ 総距離 ${fmtD(t)}</span>`;
   $("tabN").textContent=wps.length?`(${wps.length})`:"";
   renderPanel();
@@ -601,7 +606,7 @@ $("qClear").addEventListener("click",()=>{$("q").value="";closeSearch();clearPen
 
 /* ---------- 地名・住所検索（1段目: 国土地理院 → 2段目: OSM Nominatim） ----------
    OSMは無料の公開サーバーなので負荷を抑える:
-   ・ユーザーが「施設も探す」を押したとき（または地理院が0件のとき）だけ検索
+   ・ユーザーが「OSMでも探す」を押したとき（または地理院が0件のとき）だけ検索
    ・前回のOSMリクエストから2秒未満なら残り時間だけ待つ／同時に1件だけ（タブ・再読み込みをまたいで有効）
    ・3時間あたり30回まで（それ以上は地理院のみ）。1文字の語句は送らない
    ・同じ語句の結果（0件も含む）は30日間ブラウザに保存して再利用（設定で消去可）
@@ -637,9 +642,9 @@ function cachePut(q,r){
 }
 function updateCacheInfo(){
   const n=Object.keys(cacheAll()).length,st=osmState();
-  $("cacheInfo").textContent=`施設検索: 保存 ${n} 件／直近3時間 ${st.log.length}/${OSM_MAX} 回`;
+  $("cacheInfo").textContent=`OSM検索: 保存 ${n} 件／直近3時間 ${st.log.length}/${OSM_MAX} 回`;
 }
-$("btnCacheClr").addEventListener("click",()=>{try{localStorage.removeItem(OSM_CACHE_KEY);}catch(e){}updateCacheInfo();toast("施設検索の保存結果を消去しました");});
+$("btnCacheClr").addEventListener("click",()=>{try{localStorage.removeItem(OSM_CACHE_KEY);}catch(e){}updateCacheInfo();toast("OSM検索の保存結果を消去しました");});
 
 async function search(q){
   cur={q,gsi:[],osm:null,osmState:"idle",gsiErr:false};
@@ -647,7 +652,7 @@ async function search(q){
   renderCands("検索中…");
   try{
     const j=await (await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(q)}`)).json();
-    my.gsi=j.map(r=>({name:r.properties.title,label:r.properties.title,kind:"住所",lat:r.geometry.coordinates[1],lon:r.geometry.coordinates[0]}))
+    my.gsi=j.map(r=>({name:r.properties.title,label:r.properties.title,kind:"地理院",lat:r.geometry.coordinates[1],lon:r.geometry.coordinates[0]}))
       .filter(r=>isFinite(r.lat)&&isFinite(r.lon));
   }catch(e){my.gsiErr=true;}
   if(cur!==my)return;
@@ -658,10 +663,10 @@ async function searchOsm(){
   const my=cur;if(!my||my.osmState==="busy"||my.osmState==="done")return;
   const cached=cacheGet(my.q);
   if(cached){my.osm=cached;my.osmState="done";renderCands();return;}
-  if(normQ(my.q).length<2){my.osmState="err";my.osmMsg="施設検索は2文字以上で行ってください";renderCands();return;}
+  if(normQ(my.q).length<2){my.osmState="err";my.osmMsg="OSM検索は2文字以上で行ってください";renderCands();return;}
   let st=osmState();
-  if(Date.now()<st.stop){my.osmState="err";my.osmMsg=`施設検索は ${fmtHM(st.stop)} まで停止中です（住所検索は使えます）`;renderCands();return;}
-  if(st.log.length>=OSM_MAX){my.osmState="err";my.osmMsg=`施設検索は3時間に${OSM_MAX}回までです。${fmtHM(st.log[0]+OSM_WIN)} 以降に使えます（住所検索は使えます）`;renderCands();return;}
+  if(Date.now()<st.stop){my.osmState="err";my.osmMsg=`OSM検索は ${fmtHM(st.stop)} まで停止中です（地理院の検索は使えます）`;renderCands();return;}
+  if(st.log.length>=OSM_MAX){my.osmState="err";my.osmMsg=`OSM検索は3時間に${OSM_MAX}回までです。${fmtHM(st.log[0]+OSM_WIN)} 以降に使えます（地理院の検索は使えます）`;renderCands();return;}
   if(osmBusy)return;
   osmBusy=true;my.osmState="busy";renderCands();
   try{
@@ -680,15 +685,21 @@ async function searchOsm(){
     my.osm=j.map(x=>{
       const parts=String(x.display_name||"").split(",").map(t=>t.trim()).filter(t=>t&&t!=="日本"&&!/^\d{3}-?\d{4}$/.test(t));
       const name=x.name||parts[0]||my.q;
-      return {name,label:name,detail:parts.slice(x.name?1:0).reverse().join(" "),kind:"施設",lat:+x.lat,lon:+x.lon};
+      return {name,label:name,detail:parts.slice(x.name?1:0).reverse().join(" "),kind:"OSM",lat:+x.lat,lon:+x.lon};
     }).filter(x=>isFinite(x.lat)&&isFinite(x.lon));
     my.osmState="done";
     cachePut(my.q,my.osm);
   }catch(e){
     my.osmState="err";
-    my.osmMsg=e.message==="stop"?"施設検索を断られたため、3時間停止します（住所検索は使えます）":"施設検索に失敗しました（通信エラー）";
+    my.osmMsg=e.message==="stop"?"OSM検索を断られたため、3時間停止します（地理院の検索は使えます）":"OSM検索に失敗しました（通信エラー）";
   }finally{osmBusy=false;}
   if(cur===my)renderCands();
+}
+// 印（検索先）。古い履歴の「住所」「施設」も読み替える
+function kindOf(r){return r.kind==="施設"?"OSM":r.kind==="住所"?"地理院":r.kind||"";}
+function kindTag(r){
+  const k=kindOf(r);if(!k)return "";
+  return `<span class="kind k-${k==="OSM"?"osm":k==="地理院"?"gsi":"xy"}">${esc(k)}</span>`;
 }
 function renderCands(status){
   const box=$("sres"),c=cur;box.hidden=false;
@@ -696,16 +707,16 @@ function renderCands(status){
   if(status){box.innerHTML=`<div class="sh"><span>「${qq}」を${status}</span><button id="sClose">閉じる</button></div>`;return;}
   const res=[...(c.osm||[]),...c.gsi];
   let osmBtn="";
-  if(c.osmState==="idle")osmBtn=`<button id="sOsm">施設も探す（OSM）</button>`;
-  else if(c.osmState==="busy")osmBtn=`<button disabled>施設を検索中…</button>`;
-  else if(c.osmState==="err"&&c.osmMsg.startsWith("施設検索に失敗"))osmBtn=`<button id="sOsmRetry">施設を再検索</button>`;
+  if(c.osmState==="idle")osmBtn=`<button id="sOsm">OSMでも探す</button>`;
+  else if(c.osmState==="busy")osmBtn=`<button disabled>OSMで検索中…</button>`;
+  else if(c.osmState==="err"&&c.osmMsg.startsWith("OSM検索に失敗"))osmBtn=`<button id="sOsmRetry">OSMで再検索</button>`;
   let h=`<div class="sh"><span>「${qq}」 ${res.length} 件</span><button id="sClose">閉じる</button></div>`;
   if(osmBtn)h+=`<div class="sosm">${osmBtn}</div>`;
   if(c.osmState==="err")h+=`<div class="src warn">${esc(c.osmMsg)}</div>`;
   if(c.gsiErr)h+=`<div class="src warn">住所検索（国土地理院）に失敗しました（通信エラー）</div>`;
   if(!res.length&&c.osmState==="done")h+=`<div class="src">見つかりませんでした。別の書き方（正式名称、住所など）で試してください。</div>`;
   res.slice(0,40).forEach((r,i)=>{
-    h+=`<button class="si" data-i="${i}"><b><span class="kind k-${r.kind==="施設"?"f":"a"}">${r.kind}</span>${esc(r.label)}</b>${r.detail?`<small>${esc(r.detail)}</small>`:""}</button>`;
+    h+=`<button class="si" data-i="${i}"><b>${kindTag(r)}${esc(r.label)}</b>${r.detail?`<small>${esc(r.detail)}</small>`:""}</button>`;
   });
   h+=`<div class="src cred">検索: 国土地理院${c.osm?"／© OpenStreetMap contributors（Nominatim）":""}</div>`;
   box.innerHTML=h;box._res=res;
@@ -741,11 +752,11 @@ function showHist(){
   cur={q:"",gsi:h,osm:null,osmState:"none",hist:true};
   let html=`<div class="sh"><span>検索履歴 ${h.length} 件</span>${h.length?`<button id="hClr">履歴を消去</button>`:""}<button id="sClose">閉じる</button></div>`;
   if(!h.length)html+=`<div class="src">履歴はまだありません。検索して候補を選ぶとここに残ります。</div>`;
-  h.forEach((r,i)=>{html+=`<button class="si" data-i="${i}"><b>${r.kind?`<span class="kind k-${r.kind==="施設"?"f":"a"}">${esc(r.kind)}</span>`:""}${esc(r.label)}</b>${r.detail?`<small>${esc(r.detail)}</small>`:""}</button>`;});
+  h.forEach((r,i)=>{html+=`<button class="si" data-i="${i}"><b>${kindTag(r)}${esc(r.label)}</b>${r.detail?`<small>${esc(r.detail)}</small>`:""}</button>`;});
   // 出典: 履歴に含まれる検索先を表示（検索結果の一覧と同じ形）
   const src=[];
-  if(h.some(r=>r.kind==="住所"))src.push("国土地理院");
-  if(h.some(r=>r.kind==="施設"))src.push("© OpenStreetMap contributors（Nominatim）");
+  if(h.some(r=>kindOf(r)==="地理院"))src.push("国土地理院");
+  if(h.some(r=>kindOf(r)==="OSM"))src.push("© OpenStreetMap contributors（Nominatim）");
   if(src.length)html+=`<div class="src cred">検索: ${src.join("／")}</div>`;
   box.innerHTML=html;box._res=h;
 }
@@ -834,7 +845,7 @@ document.addEventListener("keydown",e=>{
 let tt;function toast(m,ms=3200){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),ms);}
 
 // スマホでは誤タップ防止のため「地図タップで追加」を初期OFF（十字ボタンで追加）
-if(isMobile()){$("clickAdd").checked=false;$("tools").open=false;}
+if(isMobile())$("tools").open=false;
 syncTap();
 mq.addEventListener("change",()=>{setView("map");renderMap();$("tools").open=!isMobile();});
 load();renderAll();updateCacheInfo();
